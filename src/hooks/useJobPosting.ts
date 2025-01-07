@@ -26,27 +26,27 @@ export function useJobPosting() {
     }
   };
 
-  // const updateJob = async (id: string, data: Partial<Job>): Promise<Job> => {
-  //   setIsLoading(true);
-  //   setError(null);
+  const updateJob = async (id: string, data: Partial<Job>): Promise<Job> => {
+    setIsLoading(true);
+    setError(null);
 
-  //   try {
-  //     const response = await api.put<Job>(`/api/jobs/${id}`, data);
-  //     addToast('success', 'Job Updated', 'Your job posting has been successfully updated.');
-  //     return response;
-  //   } catch (err) {
-  //     const message = 'Failed to update job posting. Please try again.';
-  //     setError(message);
-  //     addToast('error', 'Update Failed', message);
-  //     throw err;
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
+    try {
+      const response = await api.jobs.updateJob(id, data);;
+      addToast('success', 'Job Updated', 'Your job posting has been successfully updated.');
+      return response;
+    } catch (err) {
+      const message = 'Failed to update job posting. Please try again.';
+      setError(message);
+      addToast('error', 'Update Failed', message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return {
     createJob,
-    //updateJob,
+    updateJob,
     isLoading,
     error,
   };

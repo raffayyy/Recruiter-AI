@@ -1,27 +1,25 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, MapPin, Briefcase, Star } from 'lucide-react';
+import { User, Briefcase, Star } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { formatDate } from '../../lib/date';
+import { formatDate } from '../../utils/formatDate';
+import { formatText } from '../../utils/formatText';
 
 interface Applicant {
-  id: string;
-  name: string;
-  email: string;
-  location: string;
-  currentJobTitle: string;
-  appliedAt: string;
-  matchScore: number;
+  application_id: number;
+  applied_at: string;
+  candidate_name: string;
+  current_job_title: string;
   status: string;
+  suitability_score: number;
 }
+
 
 interface ApplicantsListProps {
   applicants: Applicant[];
-  jobId: string;
 }
 
-export function ApplicantsList({ applicants, jobId }: ApplicantsListProps) {
+export function ApplicantsList({ applicants }: ApplicantsListProps) {
   const navigate = useNavigate();
 
   const getStatusColor = (status: string) => {
@@ -34,7 +32,7 @@ export function ApplicantsList({ applicants, jobId }: ApplicantsListProps) {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
-
+ 
   return (
     <Card>
       <Card.Header>
@@ -43,21 +41,17 @@ export function ApplicantsList({ applicants, jobId }: ApplicantsListProps) {
       <Card.Content>
         <div className="divide-y divide-gray-200 dark:divide-gray-700">
           {applicants.map((applicant) => (
-            <div key={applicant.id} className="flex items-center justify-between py-4">
+            <div key={applicant.application_id} className="flex items-center justify-between py-4">
               <div className="flex items-center gap-4">
                 <div className="h-10 w-10 rounded-full bg-gray-200 p-2 dark:bg-gray-700">
                   <User className="h-full w-full text-gray-600 dark:text-gray-400" />
                 </div>
                 <div>
-                  <h3 className="font-medium">{applicant.name}</h3>
+                  <h3 className="font-medium">{applicant.candidate_name}</h3>
                   <div className="mt-1 flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-1">
                       <Briefcase className="h-4 w-4" />
-                      <span>{applicant.currentJobTitle}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      <span>{applicant.location}</span>
+                      <span>{formatText(applicant.current_job_title)}</span>
                     </div>
                   </div>
                 </div>
@@ -67,10 +61,10 @@ export function ApplicantsList({ applicants, jobId }: ApplicantsListProps) {
                 <div className="flex flex-col items-end">
                   <div className="flex items-center gap-1 text-sm">
                     <Star className="h-4 w-4 text-yellow-500" />
-                    <span>{applicant.matchScore}% Match</span>
+                    <span>{applicant.suitability_score}% Match</span>
                   </div>
                   <span className="text-sm text-gray-600 dark:text-gray-400">
-                    Applied {formatDate(applicant.appliedAt)}
+                    Applied {formatDate(applicant.applied_at)}
                   </span>
                 </div>
                 <span className={`rounded-full px-3 py-1 text-sm font-medium ${getStatusColor(applicant.status)}`}>
@@ -78,7 +72,7 @@ export function ApplicantsList({ applicants, jobId }: ApplicantsListProps) {
                 </span>
                 <Button
                   variant="outline"
-                  onClick={() => navigate(`/applications/${applicant.id}/feedback`)}
+                  onClick={() => navigate(`/applications/${applicant.application_id}/feedback`)}
                 >
                   Review
                 </Button>

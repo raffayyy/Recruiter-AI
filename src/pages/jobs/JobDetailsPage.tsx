@@ -7,7 +7,7 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { useJobDetails } from '../../hooks/useJobDetails';
 
 export default function JobDetailsPage() {
-  const { jobId } = useParams<{ jobId: string }>();
+  const { jobId } = useParams();
   const { job, applicants, isLoading, error } = useJobDetails(jobId);
 
   if (isLoading) {
@@ -40,7 +40,7 @@ export default function JobDetailsPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <JobDetails job={job} applicantsCount={applicants.length} />
-        <ApplicantsList applicants={applicants} jobId={jobId} />
+        <ApplicantsList applicants={applicants} />
       </div>
     </DashboardLayout>
   );

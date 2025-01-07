@@ -9,12 +9,13 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 export default function EditJobPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
-  const { job, isLoading: isLoadingJob, error: jobError } = useJobDetails(jobId);
+  const { completeJobDetails: job, isLoading: isLoadingJob, error: jobError } = useJobDetails(jobId);
   const { updateJob, isLoading: isUpdating, error: updateError } = useJobPosting();
 
   const handleSubmit = async (data: any) => {
     try {
-      await updateJob(jobId!, data);
+      if (!jobId) return;
+      await updateJob(jobId, data);
       navigate(`/jobs/${jobId}/details`);
     } catch (err) {
       console.error('Failed to update job:', err);

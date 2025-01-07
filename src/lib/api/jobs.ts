@@ -14,13 +14,15 @@ export class JobsAPI {
     return this.client.get(API_ENDPOINTS.GET_JOBS);
   }
 
-  // async getRecruiterJob(id: string): Promise<Job> {
-  //   return this.client.get(API_ENDPOINTS.RECRUITER_JOB(id));
-  // }
-
-  // async updateJob(id: string, data: Partial<Job>): Promise<Job> {
-  //   return this.client.put(API_ENDPOINTS.RECRUITER_JOB(id), data);
-  // }
+  async getRecruiterJob(id: string): Promise<Job> {
+    return this.client.get(API_ENDPOINTS.GET_SPECIFIED_JOB_DETAILS(id));
+  }
+  async getRecruiterJobDetails(id: string): Promise<Job> {
+    return this.client.get(API_ENDPOINTS.GET_JOB_DETAILS(id));
+  }
+  async updateJob(id: string, data: Partial<Job>): Promise<Job> {
+    return this.client.put(API_ENDPOINTS.UPDATE_PARTICULAR_JOB(id), data);
+  }
 
   // async deleteJob(id: string): Promise<void> {
   //   return this.client.delete(API_ENDPOINTS.RECRUITER_JOB(id));

@@ -4,6 +4,7 @@ import { ApplicationsList } from "../../components/applications/ApplicationsList
 import { ApplicationFilters } from "../../components/applications/ApplicationFilters";
 import { useApplications } from "../../hooks/useApplications";
 import { useAuth } from "../../contexts/AuthContext";
+import { RecruiterApplicationsList } from "../../components/applications/RecruiterApplicationsList";
 
 export default function ApplicationsPage() {
   const { applications, isLoading, error, filters, setFilters } =
@@ -27,13 +28,19 @@ export default function ApplicationsPage() {
             <ApplicationFilters filters={filters} onChange={setFilters} />
           </div>
           <div className="lg:col-span-3">
-            {user?.role ? 
-            <ApplicationsList
-              applications={applications}
-              isLoading={isLoading}
-              error={error}
-            />
-            :<></>}
+            {user?.role !== "recruiter" ? (
+              <ApplicationsList
+                applications={applications}
+                isLoading={isLoading}
+                error={error}
+              />
+            ) : (
+              <RecruiterApplicationsList
+                applications={applications}
+                isLoading={isLoading}
+                error={error}
+              />
+            )}
           </div>
         </div>
       </div>

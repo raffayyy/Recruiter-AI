@@ -34,6 +34,7 @@ export function ApplicationCard({ application, applicantsCount }: ApplicationCar
       navigate(`/jobs/${application.jobId}/details`);
     } else {
       navigate(`/applications/${application.id}/details`);
+
     }
   };
 
