@@ -1,109 +1,84 @@
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Plus, Upload } from 'lucide-react';
-import { Button } from '../ui/Button';
-import { InputField } from '../forms/InputField';
-import { SkillInput } from './SkillInput';
-import { EducationForm } from './EducationForm';
-import { User } from '../../types/auth';
+import React, { useState } from "react";
+import { FileText } from "lucide-react";
+import { User } from "../../types/auth";
+import axios from "axios";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ACCEPTED_FILE_TYPES = ['application/pdf'];
+const ACCEPTED_FILE_TYPES = ["application/pdf"];
+export function ProfileForm({ user }: { user: User }) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-const profileSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Invalid email address'),
-  yearsOfExperience: z.number().min(0, 'Experience cannot be negative'),
-  skills: z.array(z.string()),
-  education: z.array(z.object({
-    degree: z.string().min(2, 'Degree is required'),
-    field: z.string().min(2, 'Field of study is required'),
-    institution: z.string().min(2, 'Institution is required'),
-    graduationYear: z.number().min(1900).max(new Date().getFullYear() + 5),
-  })),
-  resume: z
-    .instanceof(File)
-    .optional()
-    .refine(
-      (file) => !file || file.size <= MAX_FILE_SIZE,
-      'Max file size is 5MB.'
-    )
-    .refine(
-      (file) => !file || ACCEPTED_FILE_TYPES.includes(file.type),
-      'Only PDF files are accepted.'
-    ),
-});
+  // src/components/profile/ProfileForm.tsx
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-type ProfileFormData = z.infer<typeof profileSchema>;
+    if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
+      alert("Only PDF files are accepted");
+      e.target.value = "";
+      return;
+    }
 
-interface ProfileFormProps {
-  user: User;
-  onSubmit: (data: ProfileFormData) => Promise<void>;
-}
+    if (file.size > MAX_FILE_SIZE) {
+      alert("File size must be less than 5MB");
+      e.target.value = "";
+      return;
+    }
 
-export function ProfileForm({ user, onSubmit }: ProfileFormProps) {
-  const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, watch } = 
-    useForm<ProfileFormData>({
-      resolver: zodResolver(profileSchema),
-      defaultValues: {
-        name: user.name,
-        email: user.email,
-        yearsOfExperience: user.yearsOfExperience || 0,
-        skills: user.skills || [],
-        education: user.education || [],
-      },
-    });
+    try {
+      setIsUploading(true);
+      setError(null);
 
-  // Show warning if no resume is uploaded
-  const showResumeWarning = user.role === 'candidate' && !user.resumeUrl;
+      const accessToken = localStorage.getItem("access_token");
+      if (!accessToken) throw new Error("No access token found");
+
+      const formData = new FormData();
+      formData.append("file", file); // Changed from 'resume' to 'file'
+
+      await axios.post<{ url: string }>(
+        "https://96f9-2400-adc5-123-a700-8056-37a-e256-83e9.ngrok-free.app/candidate/upload-resume",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      alert("Resume uploaded successfully!");
+      e.target.value = "";
+    } catch (error) {
+      console.error("Upload failed:", error);
+      setError("Failed to upload resume. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  if (user.role !== "candidate") return null;
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* ... existing form fields ... */}
-
-      {user.role === 'candidate' && (
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Resume
-          </label>
-          {showResumeWarning && (
-            <div className="rounded-lg bg-yellow-50 p-4 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200">
-              Please upload your resume to apply for jobs
-            </div>
-          )}
-          <div className="flex items-center gap-4">
-            {user.resumeUrl && (
-              <a
-                href={user.resumeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:underline dark:text-blue-400"
-              >
-                View Current Resume
-              </a>
-            )}
-            <input
-              type="file"
-              accept=".pdf"
-              {...register('resume')}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
-            />
-          </div>
-          {errors.resume && (
-            <p className="text-sm text-red-600">{errors.resume.message}</p>
-          )}
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Resume (PDF only, max 5MB)
+        </label>
+        <div className="mt-1 flex items-center gap-2">
+          <input
+            type="file"
+            accept=".pdf"
+            onChange={handleFileChange}
+            disabled={isUploading}
+            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100 dark:border-gray-700 dark:bg-gray-800 dark:file:bg-gray-700 dark:file:text-gray-200"
+          />
+          <FileText className="h-5 w-5 text-gray-400" />
         </div>
-      )}
-
-      <Button
-        type="submit"
-        className="w-full"
-        disabled={isSubmitting}
-      >
-        {isSubmitting ? 'Saving...' : 'Save Profile'}
-      </Button>
-    </form>
+        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+        {isUploading && (
+          <p className="mt-1 text-sm text-blue-600">Uploading...</p>
+        )}
+      </div>
+    </div>
   );
 }
