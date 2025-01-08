@@ -25,7 +25,7 @@ export function ApplicationRow({ application }: ApplicationRowProps) {
   };
 
   const handleReview = () => {
-    navigate(`/applications/${application.id}/feedback`);
+    navigate(`/applications/${application.application_id}/feedback`);
   };
 
   return (
@@ -34,28 +34,28 @@ export function ApplicationRow({ application }: ApplicationRowProps) {
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700" />
           <div>
-            <div className="font-medium">{application.candidate?.name || 'Candidate'}</div>
+            <div className="font-medium">{application.candidate_name || 'Candidate'}</div>
             <div className="text-sm text-gray-500 dark:text-gray-400">
-              {application.candidate?.email || 'No email provided'}
+              {application.candidate_email || 'No email provided'}
             </div>
           </div>
         </div>
       </td>
       <td className="px-4 py-4">
-        <div className="font-medium">{application.job?.title || 'Position'}</div>
+        <div className="font-medium">{application.job_title || 'Position'}</div>
         <div className="text-sm text-gray-500 dark:text-gray-400">
-          {application.job?.company || 'Company'}
+          {application.company_name || 'Company'}
         </div>
       </td>
       <td className="px-4 py-4">
         <div className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
           <Calendar className="h-4 w-4" />
-          {formatDate(application.appliedAt)}
+          {formatDate(application.applied_at)}
         </div>
       </td>
       <td className="px-4 py-4">
-        <Badge variant={getStatusColor(application.status)}>
-          {application.status}
+        <Badge variant={getStatusColor(application.application_status)}>
+          {application.application_status}
         </Badge>
       </td>
       <td className="px-4 py-4">
@@ -63,10 +63,10 @@ export function ApplicationRow({ application }: ApplicationRowProps) {
           <div className="h-2 w-24 rounded-full bg-gray-200 dark:bg-gray-700">
             <div
               className="h-2 rounded-full bg-blue-500"
-              style={{ width: `${application.match || 0}%` }}
+              style={{ width: `${application.suitability_score || 0}%` }}
             />
           </div>
-          <span className="text-sm font-medium">{application.match || 0}%</span>
+          <span className="text-sm font-medium">{application.suitability_score || 0}%</span>
         </div>
       </td>
       <td className="px-4 py-4">

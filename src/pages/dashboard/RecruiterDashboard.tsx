@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
 import { RealTimeStats } from '../../components/analytics/RealTimeStats';
 import { DashboardActions } from '../../components/dashboard/DashboardActions';
 import { RecruiterApplicationsList } from '../../components/recruiter/RecruiterApplicationsList';
-import { useRecruiterApplications } from '../../hooks/useRecruiterApplications';
+import { useFetchApplications } from '../../hooks/useFetchApplications';
 
 export default function RecruiterDashboard() {
-  const { applications, stats, isLoading, error, filters, setFilters } = useRecruiterApplications();
-
+  const { applications, stats, isLoading, error, filters, setFilters } = useFetchApplications();
+  console.log(applications);
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -37,3 +37,4 @@ export default function RecruiterDashboard() {
     </DashboardLayout>
   );
 }
+

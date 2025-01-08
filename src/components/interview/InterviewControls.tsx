@@ -6,12 +6,16 @@ interface InterviewControlsProps {
   isMuted: boolean;
   onToggleAudio: () => void;
   onEndInterview: () => void;
+  isRecording?: boolean; 
+  onToggleRecording?: () => void;
 }
 
 export function InterviewControls({
   isMuted,
   onToggleAudio,
   onEndInterview,
+  isRecording,
+  onToggleRecording,
 }: InterviewControlsProps) {
   return (
     <div className="flex items-center justify-between bg-gray-900 p-4 border-t border-gray-800">
@@ -41,6 +45,13 @@ export function InterviewControls({
         <Button variant="outline" size="sm">
           <ThumbsUp className="mr-2 h-4 w-4" />
           React
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onToggleRecording}
+        >
+          {isRecording ? "Stop Recording" : "Record"}
         </Button>
       </div>
       
