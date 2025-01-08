@@ -10,4 +10,7 @@ export interface Job {
   company_name?: string;
   recruiter_id?: number;
   job_id?: number;
+  suitability_score?: number;
+  created_at?: string;
+  has_applied?:boolean;
 }

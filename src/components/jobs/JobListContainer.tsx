@@ -1,11 +1,8 @@
-import React from 'react';
 import { JobList } from './JobList';
 import { JobSearch } from './JobSearch';
 import { JobFilters } from './JobFilters';
 import { useJobSearch } from '../../hooks/useJobSearch';
 import { Job } from '../../types/job';
-import { calculateJobMatch } from '../../lib/matching';
-import { useAuth } from '../../contexts/AuthContext';
 
 interface JobListContainerProps {
   jobs: Job[];
@@ -15,22 +12,7 @@ interface JobListContainerProps {
 }
 
 export function JobListContainer({ jobs, onApply, onEdit, isRecruiter }: JobListContainerProps) {
-  const { user } = useAuth();
-  const { searchTerm, setSearchTerm, filters, setFilters, filteredJobs } = useJobSearch(jobs);
-
-  // Calculate match scores for each job if user is a candidate
-  const jobsWithScores = filteredJobs.map(job => ({
-    ...job,
-    matchScore: user?.role === 'candidate' ? calculateJobMatch(
-      job,
-      {
-        skills: user.skills || [],
-        experience: user.yearsOfExperience || 0,
-        preferredLocations: [],
-        preferredTypes: [],
-      }
-    ).score : undefined
-  }));
+  const { searchTerm, setSearchTerm, filters, setFilters } = useJobSearch(jobs);
 
   return (
     <div className="grid gap-6 lg:grid-cols-4">
@@ -50,10 +32,10 @@ export function JobListContainer({ jobs, onApply, onEdit, isRecruiter }: JobList
         </div>
         
         <JobList
-          jobs={jobsWithScores}
+          key={1}
+          jobs={jobs}
           onApply={onApply}
           onEdit={onEdit}
-          isRecruiter={isRecruiter}
         />
       </div>
     </div>

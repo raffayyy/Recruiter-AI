@@ -16,12 +16,12 @@ interface VirtualInterviewerProps {
 export function VirtualInterviewer({ isAnswering }: VirtualInterviewerProps) {
   const [currentQuestion, setCurrentQuestion] = useState<string>("");
 
-  useEffect(() => {
-    if (isAnswering) {
-      const nextQuestion = questions[Math.floor(Math.random() * questions.length)];
-      setCurrentQuestion(nextQuestion);
-    }
-  }, [isAnswering]);
+  // useEffect(() => {
+  //   if (isAnswering) {
+  //     const nextQuestion = questions[Math.floor(Math.random() * questions.length)];
+  //     setCurrentQuestion(nextQuestion);
+  //   }
+  // }, [isAnswering]);
 
   return (
     <div className="flex h-full flex-col items-center justify-center rounded-lg bg-gray-800 p-8">

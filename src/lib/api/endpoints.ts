@@ -9,9 +9,10 @@ export const API_ENDPOINTS = {
   //JOBS
   CREATE_JOB: "recruiter/jobs",
   GET_JOBS: "recruiter/jobs",
-  GET_SPECIFIED_JOB_DETAILS: (id: string)=>`recruiter/applications/${id}`,
-  GET_JOB_DETAILS: (id: string)=>`recruiter/jobs/${id}`,
-  UPDATE_PARTICULAR_JOB: (id: string)=>`recruiter/jobs/${id}`,
+  GET_SPECIFIED_JOB_DETAILS: (id: string) => `recruiter/applications/${id}`,
+  GET_JOB_DETAILS: (id: string) => `recruiter/jobs/${id}`,
+  UPDATE_PARTICULAR_JOB: (id: string) => `recruiter/jobs/${id}`,
+  GET_ALL_JOBS: "/candidate/jobs",
   // Jobs
   JOBS: "/jobs",
   JOB: (id: string) => `/jobs/${id}`,
@@ -23,4 +24,5 @@ export const API_ENDPOINTS = {
   // Candidates
   CANDIDATES: "/candidates",
   CANDIDATE: (id: string) => `/candidates/${id}`,
+  CANDIDATE_APPLY: (jobId: string) => `/candidate/apply/${jobId}`,
 } as const;

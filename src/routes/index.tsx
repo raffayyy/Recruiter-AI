@@ -1,31 +1,32 @@
-import React from 'react';
-import { Route, Routes } from 'react-router-dom';
-import { PrivateRoute } from './PrivateRoute';
-import { useAuth } from '../contexts/AuthContext';
-import { LoadingSpinner } from '../components/common/LoadingSpinner';
-import { ErrorBoundary } from '../components/common/ErrorBoundary';
+import React from "react";
+import { Route, Routes } from "react-router-dom";
+import { PrivateRoute } from "./PrivateRoute";
+import { useAuth } from "../contexts/AuthContext";
+import { LoadingSpinner } from "../components/common/LoadingSpinner";
+import { ErrorBoundary } from "../components/common/ErrorBoundary";
 
 // Import components directly to avoid dynamic import issues
-import Home from '../pages/Home';
-import Login from '../pages/auth/Login';
-import Register from '../pages/auth/Register';
-import CandidateDashboard from '../pages/dashboard/CandidateDashboard';
-import RecruiterDashboard from '../pages/dashboard/RecruiterDashboard';
-import ApplicationsPage from '../pages/applications/ApplicationsPage';
-import ApplicationDetailsPage from '../pages/applications/ApplicationDetailsPage';
-import InterviewPage from '../pages/interview/InterviewPage';
-import ProfilePage from '../pages/profile/ProfilePage';
-import SettingsPage from '../pages/settings/SettingsPage';
-import FeedbackPage from '../pages/feedback/FeedbackPage';
-import JobDetailsPage from '../pages/jobs/JobDetailsPage';
-import EditJobPage from '../pages/jobs/EditJobPage';
-import CreateJobPage from '../pages/jobs/CreateJobPage';
-import CandidatesPage from '../pages/recruiter/CandidatesPage';
+import Home from "../pages/Home";
+import Login from "../pages/auth/Login";
+import Register from "../pages/auth/Register";
+import CandidateDashboard from "../pages/dashboard/CandidateDashboard";
+import RecruiterDashboard from "../pages/dashboard/RecruiterDashboard";
+import ApplicationsPage from "../pages/applications/ApplicationsPage";
+import ApplicationDetailsPage from "../pages/applications/ApplicationDetailsPage";
+import InterviewPage from "../pages/interview/InterviewPage";
+import ProfilePage from "../pages/profile/ProfilePage";
+import SettingsPage from "../pages/settings/SettingsPage";
+import FeedbackPage from "../pages/feedback/FeedbackPage";
+import JobDetailsPage from "../pages/jobs/JobDetailsPage";
+import EditJobPage from "../pages/jobs/EditJobPage";
+import CreateJobPage from "../pages/jobs/CreateJobPage";
+import CandidatesPage from "../pages/recruiter/CandidatesPage";
 
 export function AppRoutes() {
   const { user } = useAuth();
 
-  const DashboardComponent = user?.role === 'recruiter' ? RecruiterDashboard : CandidateDashboard;
+  const DashboardComponent =
+    user?.role === "recruiter" ? RecruiterDashboard : CandidateDashboard;
 
   return (
     <ErrorBoundary>
@@ -34,7 +35,7 @@ export function AppRoutes() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          
+
           <Route
             path="/dashboard"
             element={
@@ -43,7 +44,7 @@ export function AppRoutes() {
               </PrivateRoute>
             }
           />
-          
+
           <Route
             path="/applications"
             element={
@@ -61,7 +62,7 @@ export function AppRoutes() {
               </PrivateRoute>
             }
           />
-          
+
           <Route
             path="/applications/:applicationId/feedback"
             element={
@@ -106,7 +107,7 @@ export function AppRoutes() {
               </PrivateRoute>
             }
           />
-          
+
           <Route
             path="/profile"
             element={
@@ -115,7 +116,7 @@ export function AppRoutes() {
               </PrivateRoute>
             }
           />
-          
+
           <Route
             path="/settings"
             element={
@@ -124,9 +125,9 @@ export function AppRoutes() {
               </PrivateRoute>
             }
           />
-          
+
           <Route
-            path="/interview"
+            path="/interview/:id"
             element={
               <PrivateRoute>
                 <InterviewPage />

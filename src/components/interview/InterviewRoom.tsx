@@ -6,6 +6,9 @@ import { ProctoringWarnings } from './ProctoringWarnings';
 import { useVideoStream } from '../../hooks/useVideoStream';
 import { useNavigate } from 'react-router-dom';
 
+
+
+
 export function InterviewRoom() {
   const navigate = useNavigate();
   const [isMuted, setIsMuted] = useState(true); // Start muted by default

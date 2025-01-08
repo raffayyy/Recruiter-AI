@@ -14,6 +14,10 @@ export class JobsAPI {
     return this.client.get(API_ENDPOINTS.GET_JOBS);
   }
 
+  async getAvailableJobs(): Promise<Job[]> {
+    return this.client.get(API_ENDPOINTS.GET_ALL_JOBS);
+  }
+
   async getRecruiterJob(id: string): Promise<Job> {
     return this.client.get(API_ENDPOINTS.GET_SPECIFIED_JOB_DETAILS(id));
   }
@@ -33,7 +37,7 @@ export class JobsAPI {
   //   return this.client.get(API_ENDPOINTS.CANDIDATE_JOBS);
   // }
 
-  // async applyForJob(jobId: string): Promise<void> {
-  //   return this.client.post(API_ENDPOINTS.CANDIDATE_APPLY(jobId));
-  // }
+  async applyForJob(jobId: string): Promise<void> {
+    return this.client.post(API_ENDPOINTS.CANDIDATE_APPLY(jobId));
+  }
 }
