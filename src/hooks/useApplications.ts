@@ -13,6 +13,7 @@ export function useApplications() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ApplicationFilters>({});
+ 
   useEffect(() => {
     let response: any;
     const createJob = async () => {

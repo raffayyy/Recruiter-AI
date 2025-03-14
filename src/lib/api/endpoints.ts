@@ -20,7 +20,7 @@ export const API_ENDPOINTS = {
   // Applications
   APPLICATIONS: "/applications",
   APPLICATION: (id: string) => `/applications/${id}`,
-
+  CREATE_INTERVIEW: (id: string) => `/interview/start/${id}`,
   // Candidates
   CANDIDATES: "/candidates",
   CANDIDATE: (id: string) => `/candidates/${id}`,

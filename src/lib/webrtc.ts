@@ -31,6 +31,9 @@ export class WebRTCConnection {
   }
 
   close() {
+    this.peerConnection.getSenders().forEach((sender) => {
+      sender.track?.stop();
+    });
     this.peerConnection.close();
   }
 }

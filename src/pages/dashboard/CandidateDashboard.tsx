@@ -13,7 +13,6 @@ export default function CandidateDashboard() {
 
   const handleApply = async (jobId: string) => {
     try {
-      debugger;
       await applyForJob(jobId);
     } catch (err) {
       console.error("Failed to apply:", err);

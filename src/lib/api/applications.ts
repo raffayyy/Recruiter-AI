@@ -9,6 +9,9 @@ export interface ReviewDecision {
 export class ApplicationsAPI {
   constructor(private client: ApiClient) {}
 
+  async createInterview (id: string): Promise<any>{
+    return this.client.post(API_ENDPOINTS.CREATE_INTERVIEW(id));
+  }
   async getRecruiterApplications(): Promise<Application[]> {
     return this.client.get(API_ENDPOINTS.RECRUITER_APPLICATIONS);
   }
