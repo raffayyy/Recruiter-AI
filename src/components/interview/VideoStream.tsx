@@ -7,7 +7,7 @@ interface VideoStreamProps {
   className?: string;
 }
 
-export const VideoStream = forwardRef<HTMLVideoElement, VideoStreamProps>(
+export const VideoStream = forwardRef<HTMLVideoElement, any>(
   ({ muted, isLocal, className }, ref) => {
     return (
       <video

@@ -21,6 +21,7 @@ import JobDetailsPage from "../pages/jobs/JobDetailsPage";
 import EditJobPage from "../pages/jobs/EditJobPage";
 import CreateJobPage from "../pages/jobs/CreateJobPage";
 import CandidatesPage from "../pages/recruiter/CandidatesPage";
+import InterviewCompletePage from "../pages/interview/InterviewCompletePage";
 
 export function AppRoutes() {
   const { user } = useAuth();
@@ -133,6 +134,10 @@ export function AppRoutes() {
                 <InterviewPage />
               </PrivateRoute>
             }
+          />
+          <Route
+            path="/interview-complete"
+            element={<InterviewCompletePage />}
           />
         </Routes>
       </React.Suspense>

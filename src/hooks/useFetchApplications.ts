@@ -13,7 +13,7 @@ export function useFetchApplications() {
       setIsLoading(true);
       try {
         const response = await fetch(
-          "https://96f9-2400-adc5-123-a700-8056-37a-e256-83e9.ngrok-free.app/recruiter/all-applications",
+          "http://127.0.0.1:8000/recruiter/all-applications",
           {
             headers: {
               Authorization: `Bearer ${token}`,

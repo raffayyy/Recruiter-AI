@@ -14,6 +14,7 @@ interface AuthContextType {
     password: string,
     role: "candidate" | "recruiter"
   ) => Promise<void>;
+  token?: string;
   register: (data: CandidateFormData | RecruiterFormData) => Promise<void>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => Promise<void>;
@@ -24,6 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [token, setToken] = useState<string | undefined>(undefined);
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -52,10 +54,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ) => {
     setIsLoading(true);
     try {
-      const { user: userData } = await authService.login({
+      const { user: userData, access_token } = await authService.login({
         email,
         password,
       });
+      
+      localStorage.setItem("access_token", access_token);
+      setToken(access_token);
       setUser(userData);
     } finally {
       setIsLoading(false);
@@ -116,6 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         logout,
         updateProfile,
+        token,
       }}
     >
       {children}

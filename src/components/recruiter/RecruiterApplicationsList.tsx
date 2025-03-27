@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { Search, Filter, ChevronDown } from 'lucide-react';
-import { ApplicationRow } from './ApplicationRow';
-import { ApplicationFilters } from './filters/ApplicationFilters';
-import { Button } from '../ui/Button';
-import { LoadingSpinner } from '../common/LoadingSpinner';
-import { Application } from '../../types/application';
+import React, { useState } from "react";
+import { Search, Filter, ChevronDown } from "lucide-react";
+import { ApplicationRow } from "./ApplicationRow";
+import { ApplicationFilters } from "./filters/ApplicationFilters";
+import { Button } from "../ui/Button";
+import { LoadingSpinner } from "../common/LoadingSpinner";
+import { Application } from "../../types/application";
 
 interface RecruiterApplicationsListProps {
   applications: Application[];
@@ -37,8 +37,10 @@ export function RecruiterApplicationsList({
                 type="text"
                 placeholder="Search applications..."
                 className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-4 py-2 dark:border-gray-600 dark:bg-gray-700"
-                value={filters.search || ''}
-                onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
+                value={filters.search || ""}
+                onChange={(e) =>
+                  onFiltersChange({ ...filters, search: e.target.value })
+                }
               />
             </div>
           </div>
@@ -49,7 +51,11 @@ export function RecruiterApplicationsList({
           >
             <Filter className="h-4 w-4" />
             Filters
-            <ChevronDown className={`h-4 w-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${
+                showFilters ? "rotate-180" : ""
+              }`}
+            />
           </Button>
         </div>
 
@@ -73,9 +79,14 @@ export function RecruiterApplicationsList({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {applications.map((application) => (
-              <ApplicationRow key={application.application_id} application={application} />
-            ))}
+            {Array.isArray(applications) ? applications.map((application) => (
+              <ApplicationRow
+                key={application.application_id}
+                application={application}
+              />
+            )) : (
+              <tr><td colSpan={6} className="px-4 py-3 text-center">No applications found</td></tr>
+            )}
           </tbody>
         </table>
       </div>

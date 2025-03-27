@@ -10,7 +10,7 @@ export default function ApplicationsPage() {
   const { applications, isLoading, error, filters, setFilters } =
     useApplications();
   const { user } = useAuth();
-  console.log("user", user);
+  console.log("applications", applications);
   return (
     <DashboardLayout>
       <div className="space-y-6">

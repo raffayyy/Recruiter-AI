@@ -14,6 +14,8 @@ export function ApplicationsList({
   isLoading,
   error,
 }: ApplicationsListProps) {
+  console.log("applications", applications);
+
   if (isLoading) {
     return <LoadingSpinner />;
   }
@@ -26,7 +28,7 @@ export function ApplicationsList({
     );
   }
 
-  if (applications.length === 0) {
+  if (applications?.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-6 text-center dark:border-gray-700 dark:bg-gray-800">
         <p className="text-gray-600 dark:text-gray-400">
@@ -38,9 +40,13 @@ export function ApplicationsList({
 
   return (
     <div className="space-y-4">
-      {applications.map((application) => (
-        <ApplicationCard key={application.job_id} application={application} />
-      ))}
+      {applications &&
+        applications?.map((application) => (
+          <ApplicationCard
+            key={application?.job_id}
+            application={application}
+          />
+        ))}
     </div>
   );
 }

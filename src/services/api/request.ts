@@ -1,7 +1,11 @@
 import axios from "axios";
-const baseURL = import.meta.env.VITE_API_URL;
 
-export enum method_map {
+const baseURL = import.meta.env.VITE_API_URL;
+if (!baseURL) {
+  throw new Error("VITE_API_URL is not defined in environment variables.");
+}
+
+export enum MethodMap {
   GET = "GET",
   POST = "POST",
   PUT = "PUT",
@@ -9,22 +13,22 @@ export enum method_map {
   PATCH = "PATCH",
 }
 
-export const api_request = async (
-  req_method: method_map,
-  req_endpoint: string,
+export const apiRequest = async (
+  reqMethod: MethodMap,
+  reqEndpoint: string,
   data?: any
 ) => {
-  try { 
+  try {
+    const accessToken = localStorage.getItem("access_token");
     const response = await axios({
-      method: req_method,
-      url: `${baseURL}/${req_endpoint}`,
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-      },
-      data: data,
+      method: reqMethod,
+      url: `${baseURL}${reqEndpoint}`,
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      data: data || undefined, // Ensures `data` is only included if it exists
     });
     return response.data;
-  } catch (error) {
-    console.error(error);
+  } catch (error: any) {
+    console.error("API Request Error:", error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || "An error occurred");
   }
 };

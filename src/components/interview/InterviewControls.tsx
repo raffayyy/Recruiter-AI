@@ -16,7 +16,7 @@ export function InterviewControls({
   onEndInterview,
   isRecording,
   onToggleRecording,
-}: InterviewControlsProps) {
+}: any) {
   return (
     <div className="flex items-center justify-between bg-gray-900 p-4 border-t border-gray-800">
       <div className="flex gap-4">

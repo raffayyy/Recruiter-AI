@@ -1,6 +1,6 @@
 export interface JobApplication {
-  id: string;
-  jobId: string;
+  application_id: string;
+  Id: string;
   candidateId: string;
   status: 'Pending' | 'Reviewing' | 'Scheduled' | 'Rejected' | 'Accepted';
   appliedAt: string;

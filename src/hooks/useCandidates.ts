@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Candidate } from '../types/candidate';
-import api from '../lib/api';
+import { useState, useEffect } from "react";
+import { Candidate } from "../types/candidate";
+import api from "../lib/api";
+import { getRecruiterDashboardApplications } from "../services/api/recruiter_endpoints";
 
 interface CandidateFilters {
   searchTerm?: string;
@@ -10,7 +11,7 @@ interface CandidateFilters {
 }
 
 export function useCandidates() {
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [candidates, setCandidates] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<CandidateFilters>({});
@@ -18,35 +19,13 @@ export function useCandidates() {
   useEffect(() => {
     const fetchCandidates = async () => {
       try {
-        // Mock data for development
-        const mockCandidates: Candidate[] = [
-          {
-            id: '1',
-            name: 'John Doe',
-            email: 'john@example.com',
-            currentJobTitle: 'Senior Software Engineer',
-            location: 'New York, NY',
-            highestEducation: 'Master\'s',
-            yearsOfExperience: 5,
-            skills: ['React', 'TypeScript', 'Node.js'],
-          },
-          {
-            id: '2',
-            name: 'Jane Smith',
-            email: 'jane@example.com',
-            currentJobTitle: 'Product Manager',
-            location: 'San Francisco, CA',
-            highestEducation: 'Bachelor\'s',
-            yearsOfExperience: 3,
-            skills: ['Product Strategy', 'Agile', 'User Research'],
-          },
-        ];
+        const response = await getRecruiterDashboardApplications();
+        console.log(response);
 
-        setCandidates(mockCandidates);
-        setError(null);
+        setCandidates(response);
       } catch (err) {
-        console.error('Failed to fetch candidates:', err);
-        setError('Failed to load candidates. Please try again.');
+        const message = "Failed to fetch candidates. Please try again.";
+        setError(message);
       } finally {
         setIsLoading(false);
       }
