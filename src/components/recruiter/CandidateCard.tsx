@@ -14,8 +14,6 @@ interface ApplicationData {
   applied_at: string;
 }
 
-
-
 export function CandidateCard({ candidate }: any) {
   const navigate = useNavigate();
   console.log("application", candidate);
@@ -65,7 +63,7 @@ export function CandidateCard({ candidate }: any) {
             variant="outline"
             className="w-full"
             onClick={() =>
-              navigate(`/applications/${candidate.application_id}`)
+              navigate(`/applications/${candidate.application_id}/feedback`)
             }
           >
             View Application

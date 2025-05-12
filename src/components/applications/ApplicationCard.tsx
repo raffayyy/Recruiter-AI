@@ -8,8 +8,19 @@ import { formatDate } from "../../lib/date";
 import { useAuth } from "../../contexts/AuthContext";
 import { formatText } from "../../utils/formatText";
 
+// Define a more specific type for application based on the existing properties
+interface ApplicationData {
+  application_id?: string;
+  jobId?: string;
+  job_title: string;
+  company_name: string;
+  status: string;
+  applied_at: string;
+  job_type: string;
+}
+
 interface ApplicationCardProps {
-  application: any;
+  application: ApplicationData;
   applicantsCount?: number;
 }
 

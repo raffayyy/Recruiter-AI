@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BriefcaseIcon, UserCircle, Settings, Sun, Moon, ClipboardList, Users } from 'lucide-react';
+import { BriefcaseIcon, UserCircle, Settings, Sun, Moon, ClipboardList, Users, Menu, X } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/Button';
@@ -9,6 +9,7 @@ export function Navigation() {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { user, isAuthenticated } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const getNavItems = () => {
     if (!isAuthenticated) {
@@ -50,7 +51,24 @@ export function Navigation() {
           </span>
         </div>
 
-        <div className="flex items-center space-x-4">
+        {/* Mobile menu button */}
+        <div className="flex md:hidden">
+          <button
+            type="button"
+            className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 dark:hover:bg-gray-800"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            <span className="sr-only">Open main menu</span>
+            {mobileMenuOpen ? (
+              <X className="block h-6 w-6" aria-hidden="true" />
+            ) : (
+              <Menu className="block h-6 w-6" aria-hidden="true" />
+            )}
+          </button>
+        </div>
+
+        {/* Desktop navigation */}
+        <div className="hidden md:flex md:items-center md:space-x-4">
           {navItems.map((item) => (
             <Link
               key={item.path}
@@ -62,7 +80,7 @@ export function Navigation() {
               }`}
             >
               <item.icon className="h-5 w-5" />
-              <span className="hidden md:inline">{item.label}</span>
+              <span>{item.label}</span>
             </Link>
           ))}
           
@@ -95,6 +113,71 @@ export function Navigation() {
           </Button>
         </div>
       </div>
+
+      {/* Mobile menu, show/hide based on menu state */}
+      {mobileMenuOpen && (
+        <div className="md:hidden">
+          <div className="space-y-1 px-2 pb-3 pt-2">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`block rounded-md px-3 py-2 text-base font-medium ${
+                  location.pathname === item.path
+                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/50'
+                    : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800'
+                }`}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <div className="flex items-center gap-2">
+                  <item.icon className="h-5 w-5" />
+                  <span>{item.label}</span>
+                </div>
+              </Link>
+            ))}
+            
+            {!isAuthenticated && (
+              <div className="mt-3 flex flex-col space-y-2 px-3">
+                <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="outline" className="w-full">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
+                  <Button className="w-full">
+                    Sign Up
+                  </Button>
+                </Link>
+              </div>
+            )}
+            
+            <div className="mt-3 px-3">
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => {
+                  toggleTheme();
+                  setMobileMenuOpen(false);
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  {theme === 'dark' ? (
+                    <>
+                      <Sun className="h-5 w-5" />
+                      <span>Light Mode</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="h-5 w-5" />
+                      <span>Dark Mode</span>
+                    </>
+                  )}
+                </div>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

@@ -8,6 +8,8 @@ interface InterviewControlsProps {
   onEndInterview: () => void;
   isRecording?: boolean; 
   onToggleRecording?: () => void;
+  isVideoOn?: boolean;
+  onToggleVideo?: () => void;
 }
 
 export function InterviewControls({
@@ -16,7 +18,7 @@ export function InterviewControls({
   onEndInterview,
   isRecording,
   onToggleRecording,
-}: any) {
+}: InterviewControlsProps) {
   return (
     <div className="flex items-center justify-between bg-gray-900 p-4 border-t border-gray-800">
       <div className="flex gap-4">

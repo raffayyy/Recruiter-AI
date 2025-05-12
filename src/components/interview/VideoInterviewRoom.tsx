@@ -45,9 +45,10 @@ export function VideoInterviewRoom() {
         }
         
         setIsConnecting(false);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error accessing media devices:', err);
-        setMediaError(err.message || 'Failed to access camera or microphone');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to access camera or microphone';
+        setMediaError(errorMessage);
         setIsConnecting(false);
       }
     }
@@ -56,12 +57,12 @@ export function VideoInterviewRoom() {
 
     // Set up listeners for remote streams
     if (webrtc) {
-      webrtc.addEventListener('track', (event: RTCTrackEvent) => {
+      webrtc.onTrack((event: RTCTrackEvent) => {
         console.log('Remote track received:', event);
         setRemoteStream(event.streams[0]);
       });
       
-      webrtc.addEventListener('iceconnectionstatechange', () => {
+      webrtc.onIceConnectionStateChange(() => {
         console.log('ICE connection state:', webrtc.iceConnectionState);
         if (webrtc.iceConnectionState === 'failed' || 
             webrtc.iceConnectionState === 'disconnected') {
@@ -69,7 +70,7 @@ export function VideoInterviewRoom() {
         }
       });
       
-      webrtc.addEventListener('icecandidateerror', (event) => {
+      webrtc.onIceCandidateError((event) => {
         console.error('ICE candidate error:', event);
       });
     }
@@ -84,7 +85,7 @@ export function VideoInterviewRoom() {
         webrtc.close();
       }
     };
-  }, [webrtc]); // Only depend on webrtc, not localStream
+  }, [webrtc, localStream]);
 
   // Toggle audio on/off
   const toggleAudio = useCallback(() => {

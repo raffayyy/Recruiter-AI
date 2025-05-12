@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview WebSocket Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .card {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #cccccc;
+        }
+        #status {
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #ffcccc;
+        }
+        #messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: white;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .message.received {
+            background-color: #e1f5fe;
+        }
+        .message.sent {
+            background-color: #e8f5e9;
+            text-align: right;
+        }
+        input, textarea {
+            padding: 8px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+        .small {
+            font-size: 12px;
+            color: #666;
+        }
+        .success {
+            background-color: #e8f5e9;
+        }
+        .error {
+            background-color: #ffebee;
+        }
+        .warning {
+            background-color: #fff8e1;
+        }
+        #audioPlayer {
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Interview WebSocket Test</h1>
+        
+        <div class="card">
+            <h2>Connection Setup</h2>
+            <div class="control-panel">
+                <div>
+                    <label for="applicationId">Application ID:</label>
+                    <input type="text" id="applicationId" placeholder="Enter application ID">
+                </div>
+                <div>
+                    <label for="token">Bearer Token:</label>
+                    <input type="text" id="token" placeholder="Enter your JWT token">
+                    <p class="small">You can get this from localStorage after logging in to the main app</p>
+                </div>
+                <div>
+                    <label for="serverUrl">Backend URL:</label>
+                    <input type="text" id="serverUrl" value="http://localhost:8000" placeholder="Backend URL">
+                </div>
+                <button id="initInterview">1. Initialize Interview</button>
+                <button id="connectWs" disabled>2. Connect WebSocket</button>
+                <div id="status">Not connected</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Messages</h2>
+            <div id="messages"></div>
+            <div>
+                <h3>Send Text Response</h3>
+                <textarea id="textResponse" placeholder="Type your response..."></textarea>
+                <button id="sendText">Send Text</button>
+            </div>
+            <div>
+                <h3>Record Audio Response</h3>
+                <button id="startRecording">Start Recording</button>
+                <button id="stopRecording" disabled>Stop Recording</button>
+                <div id="recordingStatus">Not recording</div>
+                <audio id="audioPlayer" controls></audio>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let socket = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let stream = null;
+
+        // DOM elements
+        const statusEl = document.getElementById('status');
+        const messagesEl = document.getElementById('messages');
+        const initInterviewBtn = document.getElementById('initInterview');
+        const connectWsBtn = document.getElementById('connectWs');
+        const sendTextBtn = document.getElementById('sendText');
+        const startRecordingBtn = document.getElementById('startRecording');
+        const stopRecordingBtn = document.getElementById('stopRecording');
+        const recordingStatusEl = document.getElementById('recordingStatus');
+        const audioPlayerEl = document.getElementById('audioPlayer');
+        const textResponseEl = document.getElementById('textResponse');
+        
+        // Initialize interview button click handler
+        initInterviewBtn.addEventListener('click', async () => {
+            const applicationId = document.getElementById('applicationId').value;
+            const token = document.getElementById('token').value;
+            const serverUrl = document.getElementById('serverUrl').value;
+            
+            if (!applicationId || !token) {
+                updateStatus('Please enter both application ID and token', 'error');
+                return;
+            }
+            
+            try {
+                updateStatus('Initializing interview...', 'warning');
+                
+                const response = await fetch(`${serverUrl}/interview/start/${applicationId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateStatus('Interview initialized successfully', 'success');
+                    connectWsBtn.disabled = false;
+                    addMessage('System', 'Interview initialized successfully');
+                    addMessage('System', JSON.stringify(data, null, 2));
+                } else {
+                    updateStatus(`Failed to initialize interview: ${data.detail || 'Unknown error'}`, 'error');
+                    addMessage('Error', JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                updateStatus(`Error: ${error.message}`, 'error');
+                addMessage('Error', error.message);
+            }
+        });
+        
+        // Connect WebSocket button click handler
+        connectWsBtn.addEventListener('click', () => {
+            const applicationId = document.getElementById('applicationId').value;
+            const token = document.getElementById('token').value;
+            const serverUrl = document.getElementById('serverUrl').value;
+            
+            if (!applicationId || !token) {
+                updateStatus('Please enter both application ID and token', 'error');
+                return;
+            }
+            
+            // Parse server URL to get host and protocol
+            const urlObj = new URL(serverUrl);
+            const host = urlObj.hostname;
+            const port = urlObj.port || '8000';
+            const wsProtocol = urlObj.protocol === 'https:' ? 'wss:' : 'ws:';
+            
+            const wsUrl = `${wsProtocol}//${host}:${port}/interview/ws/${applicationId}?token=${token}`;
+            
+            try {
+                updateStatus('Connecting to WebSocket...', 'warning');
+                socket = new WebSocket(wsUrl);
+                
+                socket.onopen = () => {
+                    updateStatus('Connected to WebSocket', 'success');
+                    addMessage('System', 'WebSocket connection established');
+                    sendTextBtn.disabled = false;
+                    startRecordingBtn.disabled = false;
+                };
+                
+                socket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    addMessage('Server', JSON.stringify(data, null, 2), 'received');
+                    
+                    // Handle audio data from server
+                    if (data.type === 'audio' && data.audio_data && data.audio_data.audio_base64) {
+                        playAudio(data.audio_data.audio_base64, data.audio_data.content_type || 'audio/ogg');
+                    }
+                };
+                
+                socket.onclose = () => {
+                    updateStatus('Disconnected from WebSocket', 'error');
+                    addMessage('System', 'WebSocket connection closed');
+                    sendTextBtn.disabled = true;
+                    startRecordingBtn.disabled = true;
+                    stopRecordingBtn.disabled = true;
+                    socket = null;
+                };
+                
+                socket.onerror = (error) => {
+                    updateStatus('WebSocket error', 'error');
+                    addMessage('Error', 'WebSocket error occurred');
+                    console.error('WebSocket error:', error);
+                };
+            } catch (error) {
+                updateStatus(`Error: ${error.message}`, 'error');
+                addMessage('Error', error.message);
+            }
+        });
+        
+        // Send text button click handler
+        sendTextBtn.addEventListener('click', () => {
+            const text = textResponseEl.value.trim();
+            
+            if (!text) {
+                updateStatus('Please enter a response', 'error');
+                return;
+            }
+            
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                updateStatus('WebSocket not connected', 'error');
+                return;
+            }
+            
+            try {
+                const message = {
+                    type: 'response',
+                    text: text
+                };
+                
+                socket.send(JSON.stringify(message));
+                addMessage('You', text, 'sent');
+                textResponseEl.value = '';
+            } catch (error) {
+                updateStatus(`Error: ${error.message}`, 'error');
+                addMessage('Error', error.message);
+            }
+        });
+        
+        // Start recording button click handler
+        startRecordingBtn.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    audioPlayerEl.src = audioUrl;
+                    
+                    // Send the audio data to the server
+                    if (socket && socket.readyState === WebSocket.OPEN) {
+                        const reader = new FileReader();
+                        reader.readAsBinaryString(audioBlob);
+                        reader.onloadend = () => {
+                            try {
+                                const base64Audio = btoa(reader.result);
+                                const message = {
+                                    type: 'response',
+                                    audio_data: base64Audio
+                                };
+                                socket.send(JSON.stringify(message));
+                                addMessage('You', 'Audio response sent', 'sent');
+                            } catch (error) {
+                                updateStatus(`Error encoding audio: ${error.message}`, 'error');
+                                addMessage('Error', error.message);
+                            }
+                        };
+                    }
+                    
+                    recordingStatusEl.textContent = 'Not recording';
+                    recordingStatusEl.className = '';
+                    startRecordingBtn.disabled = false;
+                    stopRecordingBtn.disabled = true;
+                };
+                
+                mediaRecorder.start();
+                recordingStatusEl.textContent = 'Recording...';
+                recordingStatusEl.className = 'warning';
+                startRecordingBtn.disabled = true;
+                stopRecordingBtn.disabled = false;
+            } catch (error) {
+                updateStatus(`Error starting recording: ${error.message}`, 'error');
+                addMessage('Error', error.message);
+            }
+        });
+        
+        // Stop recording button click handler
+        stopRecordingBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                stream.getTracks().forEach(track => track.stop());
+            }
+        });
+        
+        // Helper functions
+        function updateStatus(message, type = '') {
+            statusEl.textContent = message;
+            statusEl.className = type;
+        }
+        
+        function addMessage(sender, content, type = '') {
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${type}`;
+            messageEl.innerHTML = `<strong>${sender}:</strong> <pre>${content}</pre>`;
+            messagesEl.appendChild(messageEl);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+        
+        function playAudio(base64Data, contentType) {
+            try {
+                const binary = atob(base64Data);
+                const array = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    array[i] = binary.charCodeAt(i);
+                }
+                
+                const blob = new Blob([array], { type: contentType });
+                const url = URL.createObjectURL(blob);
+                
+                audioPlayerEl.src = url;
+                audioPlayerEl.onended = () => URL.revokeObjectURL(url);
+                audioPlayerEl.play().catch(err => {
+                    console.error('Failed to play audio:', err);
+                });
+            } catch (error) {
+                updateStatus(`Error playing audio: ${error.message}`, 'error');
+                addMessage('Error', error.message);
+            }
+        }
+    </script>
+</body>
+</html> 
