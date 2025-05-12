@@ -12,7 +12,7 @@ export function useAuth() {
   const { addToast } = useToast();
   const navigate = useNavigate();
 
-  const login = async (data: LoginForm) => {
+  const login = async (data: any) => {
     setIsLoading(true);
     setError(null);
 

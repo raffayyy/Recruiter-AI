@@ -1,15 +1,19 @@
-import React from 'react';
-import { CandidateCard } from './CandidateCard';
-import { LoadingSpinner } from '../common/LoadingSpinner';
-import { Candidate } from '../../types/candidate';
+import React from "react";
+import { CandidateCard } from "./CandidateCard";
+import { LoadingSpinner } from "../common/LoadingSpinner";
+import { Candidate } from "../../types/candidate";
 
 interface CandidatesListProps {
-  candidates: Candidate[];
+  candidates: any[];
   isLoading: boolean;
   error: string | null;
 }
 
-export function CandidatesList({ candidates, isLoading, error }: CandidatesListProps) {
+export function CandidatesList({
+  candidates,
+  isLoading,
+  error,
+}: any) {
   if (isLoading) {
     return <LoadingSpinner />;
   }
@@ -22,17 +26,18 @@ export function CandidatesList({ candidates, isLoading, error }: CandidatesListP
     );
   }
 
-  if (candidates.length === 0) {
+  if (candidates?.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-6 text-center dark:border-gray-700 dark:bg-gray-800">
         <p className="text-gray-600 dark:text-gray-400">No candidates found</p>
       </div>
     );
   }
+  console.log("candidates", candidates);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {candidates.map((candidate) => (
+      {candidates?.map((candidate:any) => (
         <CandidateCard key={candidate.id} candidate={candidate} />
       ))}
     </div>

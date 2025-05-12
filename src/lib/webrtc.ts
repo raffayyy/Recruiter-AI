@@ -22,8 +22,22 @@ export class WebRTCConnection {
     await this.peerConnection.addIceCandidate(candidate);
   }
 
+  // Event listener methods
   onTrack(callback: (event: RTCTrackEvent) => void) {
     this.peerConnection.ontrack = callback;
+  }
+
+  onIceConnectionStateChange(callback: () => void) {
+    this.peerConnection.oniceconnectionstatechange = callback;
+  }
+
+  onIceCandidateError(callback: (event: Event) => void) {
+    this.peerConnection.onicecandidateerror = callback;
+  }
+
+  // Getter for ICE connection state
+  get iceConnectionState(): RTCIceConnectionState {
+    return this.peerConnection.iceConnectionState;
   }
 
   addTrack(track: MediaStreamTrack, stream: MediaStream) {
@@ -49,7 +63,7 @@ export function useWebRTC(configuration: RTCConfiguration) {
         connectionRef.current.close();
       }
     };
-  }, []);
+  }, [configuration]);
 
   return connectionRef.current;
 }

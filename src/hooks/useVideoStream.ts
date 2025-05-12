@@ -25,7 +25,7 @@ export function useVideoStream() {
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, []);
+  }, [stream]);
 
   return { stream, error };
 }

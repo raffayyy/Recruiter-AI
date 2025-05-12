@@ -5,8 +5,6 @@ import {
   Lock,
   User,
   Briefcase,
-  GraduationCap,
-  FileText,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { InputField } from "../forms/InputField";

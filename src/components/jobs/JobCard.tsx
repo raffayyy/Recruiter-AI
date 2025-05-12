@@ -1,13 +1,27 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Building2, MapPin, Clock, Calendar, Percent } from "lucide-react";
 import { Button } from "../ui/Button";
-import { Job } from "../../types/job";
 import { formatDate } from "../../lib/date";
 import { useAuth } from "../../contexts/AuthContext";
 import { formatText } from "../../utils/formatText";
 
-export function JobCard({ job, onApply, onEdit }: any) {
+interface JobCardProps {
+  job: {
+    job_id?: string;
+    title: string;
+    company_name: string;
+    location: string;
+    time: string;
+    created_at?: string;
+    suitability_score?: number;
+    short_description: string;
+    has_applied?: boolean;
+  };
+  onApply?: (jobId: string) => void;
+  onEdit?: (jobId: string) => void;
+}
+
+export function JobCard({ job, onApply, onEdit }: JobCardProps) {
   const { user } = useAuth();
   const isRecruiter = user?.role === "recruiter";
   const [currentJob, setCurrentJob] = useState(job);

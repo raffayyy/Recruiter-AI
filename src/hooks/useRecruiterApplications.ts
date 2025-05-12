@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Application } from '../types/application';
+import { getRecruiterDashboardApplications } from '../services/api/recruiter_endpoints';
 
 interface ApplicationStats {
   total: number;
@@ -9,7 +9,7 @@ interface ApplicationStats {
 }
 
 export function useRecruiterApplications() {
-  const [applications, setApplications] = useState<Application[]>([]);
+  const [applications, setApplications] = useState<any[]>([]);
   const [stats, setStats] = useState<ApplicationStats>({
     total: 0,
     reviewing: 0,
@@ -22,45 +22,27 @@ export function useRecruiterApplications() {
 
   useEffect(() => {
     // Mock data for development
-    const mockApplications = [
-      {
-        id: '1',
-        candidate: {
-          name: 'John Doe',
-          email: 'john@example.com',
-        },
-        job: {
-          title: 'Senior Software Engineer',
-          company: 'TechCorp',
-        },
-        status: 'Reviewing',
-        appliedAt: new Date().toISOString(),
-        match: 85,
-      },
-      {
-        id: '2',
-        candidate: {
-          name: 'Jane Smith',
-          email: 'jane@example.com',
-        },
-        job: {
-          title: 'Product Manager',
-          company: 'TechCorp',
-        },
-        status: 'Pending',
-        appliedAt: new Date().toISOString(),
-        match: 92,
-      },
-    ];
-
-    setApplications(mockApplications);
-    setStats({
-      total: mockApplications.length,
-      reviewing: 1,
-      accepted: 0,
-      rejected: 0,
-    });
-    setIsLoading(false);
+    const CandidateJobs = async () => {
+      try {
+        const response = await getRecruiterDashboardApplications();
+        console.log(response);
+        
+        setApplications(response);
+        setStats({
+          total: response ? response.length : 0,
+          reviewing: 1,
+          accepted: 0,
+          rejected: 0,
+        });
+      } catch (err) {
+        const message = "Failed to create job posting. Please try again.";
+        setError(message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    CandidateJobs();
   }, []);
 
   return {

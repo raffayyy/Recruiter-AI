@@ -19,9 +19,9 @@ export function RecruiterApplicationCard({
 
   const handleViewDetails = () => {
     if (isRecruiter) {
-      navigate(`/jobs/${application.job_id}/details`);
+      navigate(`/jobs/${application?.job_id}/details`);
     } else {
-      navigate(`/applications/${application.job_id}/details`);
+      navigate(`/applications/${application?.job_id}/details`);
     }
   };
 
@@ -30,10 +30,10 @@ export function RecruiterApplicationCard({
       <div className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <h3 className="font-semibold">{application.title}</h3>
+            <h3 className="font-semibold">{application?.title}</h3>
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
               <Building2 className="h-4 w-4" />
-              <span>{application.company_name}</span>
+              <span>{application?.company_name}</span>
             </div>
           </div>
         </div>
@@ -41,7 +41,7 @@ export function RecruiterApplicationCard({
         <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
           <div className="flex items-center gap-1">
             <Clock className="h-4 w-4" />
-            <span>{application.time}</span>
+            <span>{application?.time}</span>
           </div>
         </div>
 

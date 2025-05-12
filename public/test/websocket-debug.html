@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .log { height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-top: 10px; }
+        .log div { margin-bottom: 5px; padding: 5px; border-bottom: 1px solid #eee; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        input, select, button { margin: 5px 0; padding: 8px; }
+        input[type="text"] { width: 100%; }
+        fieldset { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Connection Test</h1>
+    
+    <fieldset>
+        <legend>Connection Settings</legend>
+        <div>
+            <label for="applicationId">Application ID:</label>
+            <input type="text" id="applicationId" placeholder="Enter application ID">
+        </div>
+        <div>
+            <label for="token">JWT Token:</label>
+            <input type="text" id="token" placeholder="Enter JWT token">
+        </div>
+        <div>
+            <label for="host">WebSocket Host:</label>
+            <input type="text" id="host" value="localhost">
+        </div>
+        <div>
+            <label for="port">WebSocket Port:</label>
+            <input type="text" id="port" value="8000">
+        </div>
+        <div>
+            <label for="protocol">Protocol:</label>
+            <select id="protocol">
+                <option value="ws">ws://</option>
+                <option value="wss">wss://</option>
+            </select>
+        </div>
+        <button id="connect">Connect</button>
+        <button id="disconnect" disabled>Disconnect</button>
+    </fieldset>
+    
+    <fieldset>
+        <legend>Message Testing</legend>
+        <div>
+            <label for="messageType">Message Type:</label>
+            <select id="messageType">
+                <option value="ping">ping</option>
+                <option value="response">response (text)</option>
+            </select>
+        </div>
+        <div id="textResponseContainer">
+            <label for="textResponse">Text Response:</label>
+            <input type="text" id="textResponse" placeholder="Enter text response">
+        </div>
+        <button id="send" disabled>Send Message</button>
+    </fieldset>
+    
+    <fieldset>
+        <legend>Connection Log</legend>
+        <div class="log" id="log"></div>
+        <button id="clear">Clear Log</button>
+    </fieldset>
+
+    <script>
+        // DOM Elements
+        const applicationIdInput = document.getElementById('applicationId');
+        const tokenInput = document.getElementById('token');
+        const hostInput = document.getElementById('host');
+        const portInput = document.getElementById('port');
+        const protocolSelect = document.getElementById('protocol');
+        const connectBtn = document.getElementById('connect');
+        const disconnectBtn = document.getElementById('disconnect');
+        const messageTypeSelect = document.getElementById('messageType');
+        const textResponseContainer = document.getElementById('textResponseContainer');
+        const textResponseInput = document.getElementById('textResponse');
+        const sendBtn = document.getElementById('send');
+        const logDiv = document.getElementById('log');
+        const clearBtn = document.getElementById('clear');
+        
+        // Load token from localStorage if available
+        const savedToken = localStorage.getItem('access_token');
+        if (savedToken) {
+            tokenInput.value = savedToken;
+            log('Loaded token from localStorage', 'info');
+        }
+        
+        // WebSocket connection
+        let socket = null;
+        
+        // Connect button click handler
+        connectBtn.addEventListener('click', () => {
+            const applicationId = applicationIdInput.value.trim();
+            const token = tokenInput.value.trim();
+            const host = hostInput.value.trim();
+            const port = portInput.value.trim();
+            const protocol = protocolSelect.value;
+            
+            if (!applicationId) {
+                log('Please enter an application ID', 'error');
+                return;
+            }
+            
+            if (!token) {
+                log('Please enter a JWT token', 'error');
+                return;
+            }
+            
+            try {
+                const wsUrl = `${protocol}://${host}:${port}/interview/ws/${applicationId}?token=${encodeURIComponent(token)}`;
+                log(`Connecting to: ${wsUrl.replace(/token=([^&]+)/, 'token=***')}`, 'info');
+                
+                socket = new WebSocket(wsUrl);
+                
+                socket.onopen = () => {
+                    log('Connection established', 'success');
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    sendBtn.disabled = false;
+                };
+                
+                socket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`Received: ${JSON.stringify(data, null, 2)}`, 'success');
+                    } catch (error) {
+                        log(`Received non-JSON message: ${event.data}`, 'info');
+                    }
+                };
+                
+                socket.onclose = (event) => {
+                    log(`Connection closed: Code ${event.code}, Reason: ${event.reason || 'No reason provided'}`, 'info');
+                    resetConnectionState();
+                };
+                
+                socket.onerror = (error) => {
+                    log(`WebSocket error: ${error}`, 'error');
+                };
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Disconnect button click handler
+        disconnectBtn.addEventListener('click', () => {
+            if (socket) {
+                socket.close(1000, 'User disconnected');
+                log('Closing connection...', 'info');
+            }
+        });
+        
+        // Send button click handler
+        sendBtn.addEventListener('click', () => {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                log('WebSocket not connected', 'error');
+                return;
+            }
+            
+            const messageType = messageTypeSelect.value;
+            let message;
+            
+            if (messageType === 'ping') {
+                message = { type: 'ping' };
+            } else if (messageType === 'response') {
+                const text = textResponseInput.value.trim();
+                if (!text) {
+                    log('Please enter a text response', 'error');
+                    return;
+                }
+                message = { type: 'response', text };
+            }
+            
+            try {
+                const messageStr = JSON.stringify(message);
+                socket.send(messageStr);
+                log(`Sent: ${messageStr}`, 'info');
+            } catch (error) {
+                log(`Error sending message: ${error.message}`, 'error');
+            }
+        });
+        
+        // Clear log button click handler
+        clearBtn.addEventListener('click', () => {
+            logDiv.innerHTML = '';
+        });
+        
+        // Message type change handler
+        messageTypeSelect.addEventListener('change', () => {
+            if (messageTypeSelect.value === 'response') {
+                textResponseContainer.style.display = 'block';
+            } else {
+                textResponseContainer.style.display = 'none';
+            }
+        });
+        
+        // Helper functions
+        function log(message, type) {
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(div);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            
+            // Also log to console for debugging
+            console.log(`[${type}] ${message}`);
+        }
+        
+        function resetConnectionState() {
+            connectBtn.disabled = false;
+            disconnectBtn.disabled = true;
+            sendBtn.disabled = true;
+            socket = null;
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Try to detect protocol
+            if (window.location.protocol === 'https:') {
+                protocolSelect.value = 'wss';
+            }
+            
+            // Set initial visibility for response input
+            if (messageTypeSelect.value === 'response') {
+                textResponseContainer.style.display = 'block';
+            } else {
+                textResponseContainer.style.display = 'none';
+            }
+            
+            log('WebSocket connection tester initialized', 'info');
+        });
+    </script>
+</body>
+</html> 

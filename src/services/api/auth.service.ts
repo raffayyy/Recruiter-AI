@@ -4,8 +4,7 @@ import type { AuthResponse } from "../../types/auth";
 import type { CandidateFormData } from "../../types/candidate";
 import type { RecruiterFormData } from "../../types/recruiter";
 
-const API_URL =
-  "https://96f9-2400-adc5-123-a700-8056-37a-e256-83e9.ngrok-free.app/auth";
+const API_URL = "http://127.0.0.1:8000/auth";
 
 // Token utilities
 const TOKEN_KEY = "access_token";

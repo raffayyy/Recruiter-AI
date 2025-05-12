@@ -5,7 +5,7 @@ import { useCandidateAnalytics } from '../../hooks/useCandidateAnalytics';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 
 export function CandidateAnalytics() {
-  const { stats, applicationTrends, isLoading, error } = useCandidateAnalytics();
+  const { stats, isLoading, error } = useCandidateAnalytics();
 
   if (isLoading) return <LoadingSpinner />;
   if (error) return null;

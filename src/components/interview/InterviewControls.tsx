@@ -8,6 +8,8 @@ interface InterviewControlsProps {
   onEndInterview: () => void;
   isRecording?: boolean; 
   onToggleRecording?: () => void;
+  isVideoOn?: boolean;
+  onToggleVideo?: () => void;
 }
 
 export function InterviewControls({

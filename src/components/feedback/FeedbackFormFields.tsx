@@ -1,16 +1,28 @@
 import React from 'react';
 import { RatingInput } from './RatingInput';
 import { SkillInput } from '../profile/SkillInput';
+import { FieldErrors, UseFormRegister, UseFormSetValue, UseFormWatch } from 'react-hook-form';
 
-interface FeedbackFormFieldsProps {
-  values: any;
-  errors: any;
-  register: any;
-  setValue: any;
-  watch: any;
+interface FeedbackFormValues {
+  rating: number;
+  technicalScore: number;
+  communicationScore: number;
+  culturalFitScore: number;
+  strengths: string[];
+  areasForImprovement: string[];
+  comments: string;
+  recommendation: string;
 }
 
-export function FeedbackFormFields({ values, errors, register, setValue, watch }: FeedbackFormFieldsProps) {
+interface FeedbackFormFieldsProps {
+  values: FeedbackFormValues;
+  errors: FieldErrors<FeedbackFormValues>;
+  register: UseFormRegister<FeedbackFormValues>;
+  setValue: UseFormSetValue<FeedbackFormValues>;
+  watch: UseFormWatch<FeedbackFormValues>;
+}
+
+export function FeedbackFormFields({ errors, register, setValue, watch }: FeedbackFormFieldsProps) {
   return (
     <div className="space-y-6">
       <div>

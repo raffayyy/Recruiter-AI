@@ -7,7 +7,7 @@ export interface User {
   yearsOfExperience?: number;
   company?: string;
   createdAt: string;
-  resume: File;
+  resume: Boolean;
   resumeUrl: string;
 }
 
