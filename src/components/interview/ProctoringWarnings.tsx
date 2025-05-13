@@ -1,88 +1,43 @@
-import React, { useState, useEffect } from 'react';
-import { AlertTriangle, MicOff } from 'lucide-react';
+import React from 'react';
+import { AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 
-interface Warning {
-  id: string;
-  message: string;
-  type: 'movement' | 'face' | 'audio' | 'objects';
-}
-
-interface ProctoringWarningsProps {
-  showMicrophoneWarning?: boolean;
-}
-
-export function ProctoringWarnings({ showMicrophoneWarning = false }: ProctoringWarningsProps) {
-  const [warnings, setWarnings] = useState<Warning[]>([]);
-
-  // Simulate proctoring warnings
-  useEffect(() => {
-    // Disable random warnings for now (can be enabled later)
-    return;
-    
-    const warningTypes: Array<Omit<Warning, 'id'>> = [
-      {
-        type: 'movement',
-        message: 'Please remain centered in the camera view',
-      },
-      {
-        type: 'face',
-        message: 'Multiple faces detected in frame',
-      },
-      {
-        type: 'audio',
-        message: 'Background noise detected',
-      },
-      {
-        type: 'objects',
-        message: 'Unauthorized objects detected',
-      },
-    ];
-
-    const interval = setInterval(() => {
-      const randomWarning = warningTypes[Math.floor(Math.random() * warningTypes.length)];
-      if (Math.random() > 0.7) {
-        setWarnings(prev => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            ...randomWarning,
-          },
-        ]);
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Remove warnings after 5 seconds
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      setWarnings(prev => prev.slice(1));
-    }, 5000);
-
-    return () => clearTimeout(timeout);
-  }, [warnings]);
-
-  if (warnings.length === 0 && !showMicrophoneWarning) return null;
-
+export function ProctoringWarnings() {
   return (
-    <div className="absolute bottom-4 left-4 right-4 space-y-2">
-      {showMicrophoneWarning && (
-        <div className="flex items-center gap-2 rounded-lg bg-red-500 bg-opacity-90 px-4 py-2 text-white">
-          <MicOff className="h-5 w-5" />
-          <span>Microphone issue detected. Please check your microphone settings.</span>
-        </div>
-      )}
+    <div className="bg-gray-800 p-4 rounded-lg">
+      <h3 className="text-lg font-medium text-white flex items-center gap-2 mb-3">
+        <Info className="h-5 w-5 text-blue-400" />
+        Interview Tips
+      </h3>
       
-      {warnings.map(warning => (
-        <div
-          key={warning.id}
-          className="flex items-center gap-2 rounded-lg bg-red-500 bg-opacity-90 px-4 py-2 text-white"
-        >
-          <AlertTriangle className="h-5 w-5" />
-          <span>{warning.message}</span>
+      <div className="space-y-3">
+        <div className="flex items-start gap-2">
+          <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-white text-sm">Speak clearly and at a steady pace when answering questions.</p>
+          </div>
         </div>
-      ))}
+
+        <div className="flex items-start gap-2">
+          <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-white text-sm">Keep your face well-lit and centered in the camera frame.</p>
+          </div>
+        </div>
+        
+        <div className="flex items-start gap-2">
+          <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-white text-sm">Avoid leaving the camera frame during the interview.</p>
+          </div>
+        </div>
+        
+        <div className="flex items-start gap-2">
+          <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-white text-sm">Ensure your environment is quiet and free from distractions.</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

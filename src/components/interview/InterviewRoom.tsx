@@ -174,7 +174,7 @@ export function InterviewRoom() {
     };
   }, [isRecording, isAutomaticMode, analyser]);
 
-  // Modify the audio playback section in the message processing useEffect
+  // Modify the audio handling section in the messages effect
   useEffect(() => {
     // Only process new messages
     if (messages.length > 0 && lastProcessedMessageRef.current < messages.length - 1) {
@@ -207,6 +207,14 @@ export function InterviewRoom() {
           }
           audioElementRef.current = null;
         }
+        
+        // Add a safety timeout to reset isPlayingAudio in case something fails
+        const safetyTimeout = setTimeout(() => {
+          if (isPlayingAudio) {
+            console.log("Safety timeout: Resetting isPlayingAudio state");
+            setIsPlayingAudio(false);
+          }
+        }, 10000); // 10 seconds max for audio playback
         
         // Small delay to ensure cleanup is complete
         setTimeout(() => {
@@ -256,6 +264,7 @@ export function InterviewRoom() {
               // Set up all event handlers before setting the source
               audio.onended = () => {
                 console.log("Audio playback finished");
+                clearTimeout(safetyTimeout);
                 if (audioElementRef.current === audio) {
                   audioElementRef.current = null;
                 }
@@ -265,6 +274,7 @@ export function InterviewRoom() {
               
               audio.onerror = (e) => {
                 console.error("Audio playback error:", e);
+                clearTimeout(safetyTimeout);
                 if (audioElementRef.current === audio) {
                   audioElementRef.current = null;
                 }
@@ -283,6 +293,7 @@ export function InterviewRoom() {
                 if (audioElementRef.current === audio) {
                   audio.play().catch((err) => {
                     console.error("Failed to play audio:", err);
+                    clearTimeout(safetyTimeout);
                     if (audioElementRef.current === audio) {
                       audioElementRef.current = null;
                     }
@@ -291,25 +302,42 @@ export function InterviewRoom() {
                   });
                 } else {
                   // Another audio element was created in the meantime
+                  clearTimeout(safetyTimeout);
                   URL.revokeObjectURL(url);
                   setIsPlayingAudio(false);
                 }
               }, 100);
             } else {
               console.error("No valid audio data found in message", latestMessage);
+              clearTimeout(safetyTimeout);
               setIsPlayingAudio(false);
             }
           } catch (err) {
             console.error("Error processing audio data:", err);
+            clearTimeout(safetyTimeout);
             setIsPlayingAudio(false);
           }
         }, 50); // Small delay for cleanup
+        
+        // Return a cleanup function that will run when the component unmounts
+        return () => {
+          clearTimeout(safetyTimeout);
+          if (audioElementRef.current) {
+            try {
+              audioElementRef.current.pause();
+              audioElementRef.current.src = '';
+            } catch (err) {
+              console.error("Error in cleanup:", err);
+            }
+            audioElementRef.current = null;
+          }
+          setIsPlayingAudio(false);
+        };
       }
     }
     
     // Cleanup function
     return () => {
-      // Make sure to properly clean up audio elements when component unmounts
       if (audioElementRef.current) {
         try {
           audioElementRef.current.pause();
@@ -321,6 +349,31 @@ export function InterviewRoom() {
       }
     };
   }, [messages, isPlayingAudio]);
+
+  // Add a manual reset button for emergency cases
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Allow ESC key to reset audio state
+      if (e.key === 'Escape') {
+        if (isPlayingAudio) {
+          console.log("Emergency reset of audio state");
+          if (audioElementRef.current) {
+            try {
+              audioElementRef.current.pause();
+              audioElementRef.current.src = '';
+            } catch (err) {
+              console.error("Error stopping audio:", err);
+            }
+            audioElementRef.current = null;
+          }
+          setIsPlayingAudio(false);
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [isPlayingAudio]);
 
   // Add this cleanup effect for automatic mode timers
   useEffect(() => {
@@ -335,21 +388,43 @@ export function InterviewRoom() {
     };
   }, [silenceTimer]);
 
-  // Modify the toggleRecording function to update UI indicators
-  function toggleRecording() {
-    console.log("Toggle recording called, current state:", isRecording);
-    if (!isRecording) {
-      // Start recording - will set isRecording to true inside startRecording
-      startRecording();
-    } else {
-      // Stop recording - will set isRecording to false inside the recorder's onstop handler
-      stopRecording();
+  // Improve the stopRecording function to ensure proper cleanup
+  const stopRecording = useCallback(() => {
+    if (!mediaRecorder) {
+      console.warn("No active media recorder");
+      return;
     }
-  }
 
-  // Handle press-and-hold recording
+    try {
+      console.log("Stopping recording...");
+      // Use try-catch for each step to ensure robustness
+      try {
+        mediaRecorder.stop();
+        console.log("MediaRecorder stopped successfully");
+      } catch (err) {
+        console.error("Error stopping mediaRecorder:", err);
+      }
+      
+      // Reset state immediately to prevent race conditions
+      setIsRecording(false);
+      setMediaRecorder(null);
+    } catch (err) {
+      console.error("Error in stopRecording:", err);
+      // Ensure states are reset even if there's an error
+      setIsRecording(false);
+      setMediaRecorder(null);
+    }
+  }, [mediaRecorder]);
+
+  // Update the handleHoldToRecord function to ensure it works consistently
   const handleHoldToRecord = useCallback((isHolding: boolean) => {
     console.log("Hold to record:", isHolding);
+    
+    // Don't allow recording if audio is playing
+    if (isPlayingAudio) {
+      console.log("Cannot record while audio is playing");
+      return;
+    }
     
     if (isHolding) {
       // Start recording when button is pressed
@@ -362,23 +437,133 @@ export function InterviewRoom() {
         stopRecording();
       }
     }
-  }, [isRecording, stream, mediaRecorder]);
+  }, [isRecording, stream, mediaRecorder, stopRecording, isPlayingAudio]);
 
-  // Define stopRecording function using useCallback
-  const stopRecording = useCallback(() => {
-    if (!mediaRecorder) {
-      console.warn("No active media recorder");
+  // Modify the toggleRecording function to update UI indicators
+  function toggleRecording() {
+    console.log("Toggle recording called, current state:", isRecording);
+    if (!isRecording) {
+      // Start recording - will set isRecording to true inside startRecording
+      startRecording();
+    } else {
+      // Stop recording - will set isRecording to false inside the recorder's onstop handler
+      stopRecording();
+    }
+  }
+
+  // Update the startRecording function to include better error handling and state management
+  function startRecording() {
+    if (!stream) {
+      console.error("No media stream available");
       return;
     }
 
-    try {
-      mediaRecorder.stop();
-      setMediaRecorder(null);
-      console.log("Recording stopped");
-    } catch (err) {
-      console.error("Error stopping recording:", err);
+    if (isPlayingAudio) {
+      console.warn("Cannot start recording while audio is playing");
+      return;
     }
-  }, [mediaRecorder]);
+    
+    if (isRecording) {
+      console.warn("Already recording, stopping previous recording first");
+      stopRecording();
+    }
+
+    // First make sure any existing recorder is stopped and cleaned up
+    if (mediaRecorder) {
+      console.log("Stopping existing recorder before starting a new one");
+      try {
+        mediaRecorder.stop();
+      } catch (err) {
+        console.error("Error stopping existing recorder:", err);
+      }
+      setMediaRecorder(null);
+    }
+
+    // Reset audio chunks array for new recording
+    audioChunksRef.current = [];
+
+    // Check if audio track exists
+    const audioTracks = stream.getAudioTracks();
+    if (audioTracks.length === 0) {
+      console.error("No audio track found in the stream");
+      alert("No microphone detected. Please ensure your microphone is connected and working properly.");
+      return;
+    }
+    
+    const audioTrack = audioTracks[0];
+    console.log("Audio track status:", {
+      label: audioTrack.label,
+      enabled: audioTrack.enabled,
+      muted: audioTrack.muted,
+      readyState: audioTrack.readyState
+    });
+    
+    // Ensure track is enabled
+    audioTrack.enabled = true;
+
+    try {
+      // Create the recorder with default settings
+      const recorder = new MediaRecorder(stream);
+      
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+          console.log(`Audio chunk received: ${event.data.size} bytes, type: ${event.data.type}`);
+        } else {
+          console.warn("Received empty audio chunk");
+        }
+      };
+      
+      recorder.onstop = () => {
+        console.log("MediaRecorder onstop event fired");
+        
+        // Ensure recording state is set to false
+        setIsRecording(false);
+        
+        if (audioChunksRef.current.length === 0) {
+          console.error("No audio data captured");
+          return;
+        }
+        
+        const audioBlob = new Blob(audioChunksRef.current);
+        
+        console.log(`Recording complete, blob size: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
+        
+        // Log audio chunks for debugging
+        console.log("Audio chunks details:", audioChunksRef.current.map(chunk => {
+          if (chunk instanceof Blob) {
+            return { size: chunk.size, type: chunk.type };
+          } else {
+            return { type: typeof chunk };
+          }
+        }));
+        
+        // Send audio to backend for processing
+        sendAudioToBackend(audioBlob);
+        
+        // Clear chunks after sending
+        audioChunksRef.current = [];
+      };
+      
+      recorder.onerror = (event) => {
+        console.error("MediaRecorder error:", event);
+        setIsRecording(false);
+        setMediaRecorder(null);
+      };
+      
+      // Start recording immediately
+      recorder.start(1000);
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+      console.log("Recording started with MediaRecorder state:", recorder.state);
+    } catch (err) {
+      console.error("Error starting recording:", err);
+      alert("Failed to start recording: " + (err instanceof Error ? err.message : String(err)));
+      // Reset states if recording fails to start
+      setIsRecording(false);
+      setMediaRecorder(null);
+    }
+  }
 
   // Initialize interview
   useEffect(() => {
@@ -563,141 +748,30 @@ export function InterviewRoom() {
         
         document.body.appendChild(notificationEl);
         setTimeout(() => {
-          document.body.removeChild(notificationEl);
+          if (document.body.contains(notificationEl)) {
+            document.body.removeChild(notificationEl);
+          }
         }, 3000);
         
       } catch (err) {
         console.error("Error encoding audio:", err);
         alert("Error sending audio: " + (err instanceof Error ? err.message : String(err)));
+      } finally {
+        // Always ensure we're ready for next recording
+        audioChunksRef.current = [];
       }
     };
 
     reader.onerror = (error) => {
       console.error("FileReader error:", error);
       alert("Error reading audio data");
+      // Ensure we're ready for next recording
+      audioChunksRef.current = [];
     };
 
     // Read as data URL
     reader.readAsDataURL(audioBlob);
   }
-
-  // Simplified startRecording function
-  function startRecording() {
-    if (!stream) {
-      console.error("No media stream available");
-      return;
-    }
-
-    if (isPlayingAudio) {
-      console.warn("Cannot start recording while audio is playing");
-      return;
-    }
-
-    // First make sure any existing recorder is stopped
-    if (mediaRecorder) {
-      console.log("Stopping existing recorder before starting a new one");
-      try {
-        mediaRecorder.stop();
-      } catch (err) {
-        console.error("Error stopping existing recorder:", err);
-      }
-      setMediaRecorder(null);
-    }
-
-    // Check if audio track exists
-    const audioTracks = stream.getAudioTracks();
-    if (audioTracks.length === 0) {
-      console.error("No audio track found in the stream");
-      alert("No microphone detected. Please ensure your microphone is connected and working properly.");
-      return;
-    }
-    
-    const audioTrack = audioTracks[0];
-    console.log("Audio track status:", {
-      label: audioTrack.label,
-      enabled: audioTrack.enabled,
-      muted: audioTrack.muted,
-      readyState: audioTrack.readyState
-    });
-    
-    // Ensure track is enabled
-    audioTrack.enabled = true;
-
-    try {
-      // Create the recorder with default settings
-      const recorder = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-      
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-          console.log(`Audio chunk received: ${event.data.size} bytes, type: ${event.data.type}`);
-        } else {
-          console.warn("Received empty audio chunk");
-        }
-      };
-      
-      recorder.onstop = () => {
-        console.log("MediaRecorder onstop event fired");
-        setIsRecording(false);
-        
-        if (audioChunksRef.current.length === 0) {
-          console.error("No audio data captured");
-          return;
-        }
-        
-        const audioBlob = new Blob(audioChunksRef.current);
-        
-        console.log(`Recording complete, blob size: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
-        
-        // Log audio chunks for debugging
-        console.log("Audio chunks details:", audioChunksRef.current.map(chunk => {
-          if (chunk instanceof Blob) {
-            return { size: chunk.size, type: chunk.type };
-          } else {
-            return { type: typeof chunk };
-          }
-        }));
-        
-        // Send audio to backend for processing
-        sendAudioToBackend(audioBlob);
-      };
-      
-      recorder.onerror = (event) => {
-        console.error("MediaRecorder error:", event);
-        setIsRecording(false);
-      };
-      
-      // Start recording immediately
-      recorder.start(1000);
-      setMediaRecorder(recorder);
-      setIsRecording(true);
-      console.log("Recording started with MediaRecorder state:", recorder.state);
-    } catch (err) {
-      console.error("Error starting recording:", err);
-      alert("Failed to start recording: " + (err instanceof Error ? err.message : String(err)));
-    }
-  }
-
-  // Connection status indicator
-  const ConnectionStatus = () => (
-    <div className="absolute top-4 left-4 z-10">
-      <div
-        className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-white ${
-          isConnected ? "bg-green-600" : "bg-red-600"
-        }`}
-      >
-        <div
-          className={`h-2 w-2 rounded-full ${
-            isConnected ? "bg-green-300" : "bg-red-300"
-          }`}
-        />
-        <span className="text-xs font-medium">
-          {isConnected ? "Connected" : "Disconnected"}
-        </span>
-      </div>
-    </div>
-  );
 
   if (error) {
     return (
@@ -731,25 +805,68 @@ export function InterviewRoom() {
   }
 
   return (
-    <div className="grid grid-cols-1 h-screen">
-      {/* Connection status indicator */}
-      <ConnectionStatus />
-
-      {/* Timer display */}
-      <div className="absolute top-4 right-4 z-10">
+    <div className="flex flex-col h-screen bg-gray-950">
+      {/* Status bar with timer and connection status */}
+      <div className="flex items-center justify-between bg-gray-900 p-2 px-4 border-b border-gray-800">
+        {/* Connection status indicator */}
+        <div className="flex items-center gap-2">
+          <div
+            className={`h-2 w-2 rounded-full ${
+              isConnected ? "bg-green-500 animate-pulse" : "bg-red-500"
+            }`}
+          />
+          <span className="text-sm text-gray-300">
+            {isConnected ? "Connected" : "Connecting..."}
+          </span>
+        </div>
+        
+        {/* Timer display with improved styling */}
         <div
-          className={`flex items-center gap-2 rounded-lg ${
-            timeRemaining < 120 ? "bg-red-600" : "bg-blue-600"
-          } px-3 py-1.5 text-white`}
+          className={`flex items-center gap-2 rounded-full px-3 py-1
+            ${timeRemaining < 120 
+              ? "bg-red-600 animate-pulse" 
+              : timeRemaining < 300 
+                ? "bg-yellow-600" 
+                : "bg-blue-600"
+            } text-white text-sm font-medium`}
         >
-          <Clock className="h-4 w-4" />
-          <span className="font-medium">{formatTime(timeRemaining)}</span>
+          <Clock className="h-3.5 w-3.5" />
+          <span>{formatTime(timeRemaining)}</span>
         </div>
       </div>
 
+      {/* Main interview area */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* Virtual Interviewer - Takes most of the screen */}
+        <div className="flex-1 p-4 overflow-auto">
+          <VirtualInterviewer
+            isAnswering={isRecording}
+            question={serverQuestion}
+          />
+        </div>
+        
+        {/* Side panel with camera and tips */}
+        <div className="w-full md:w-80 p-4 bg-gray-900 border-t md:border-t-0 md:border-l border-gray-800 flex flex-col overflow-auto">
+          {/* Self View */}
+          <div className="mb-4">
+            <h3 className="text-sm font-medium text-gray-400 mb-2">Camera Preview</h3>
+            <VideoPanel
+              stream={stream}
+              isMuted={true}
+              isVideoOn={true}
+            />
+          </div>
+          
+          {/* Interview Tips */}
+          <div className="flex-1">
+            <ProctoringWarnings />
+          </div>
+        </div>
+      </div>
+      
       {/* Time warning */}
       {showTimeWarning && (
-        <div className="absolute top-16 right-4 z-10 w-64 animate-pulse rounded-lg bg-red-600 p-3 text-white">
+        <div className="fixed top-16 right-4 z-50 animate-pulse rounded-lg bg-red-600 p-3 text-white shadow-lg">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" />
             <span className="font-medium">2 minutes remaining!</span>
@@ -757,77 +874,16 @@ export function InterviewRoom() {
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row p-4 md:p-6 h-full">
-        {/* Main Content - Takes full width on mobile, partial on desktop */}
-        <div className="relative flex-1 mb-4 md:mb-0">
-          {/* Virtual Interviewer (Main Focus) */}
-          <VirtualInterviewer
-            isAnswering={isRecording || !isMuted}
-            question={serverQuestion}
-          />
-          
-          {/* Mobile-only controls - visible only on small screens */}
-          <div className="block md:hidden mt-4">
-            <InterviewControls
-              isMuted={isMuted}
-              onToggleAudio={() => setIsMuted(!isMuted)}
-              onEndInterview={() => handleEndInterview()}
-              isRecording={isRecording}
-              onToggleRecording={toggleRecording}
-              onHoldToRecord={handleHoldToRecord}
-            />
-          </div>
-        </div>
-        
-        {/* Right side panel - Takes full width on mobile, partial on desktop */}
-        <div className="flex flex-col w-full md:w-72 md:ml-4">
-          {/* Self View */}
-          <div className="w-full">
-            <VideoPanel
-              stream={stream}
-              isMuted={isMuted}
-              isVideoOn={isVideoOn}
-              onToggleAudio={() => setIsMuted(!isMuted)}
-              onToggleVideo={() => setIsVideoOn(!isVideoOn)}
-            />
-          </div>
-          
-          {/* Desktop controls - hidden on mobile */}
-          <div className="hidden md:block mt-4">
-            <InterviewControls
-              isMuted={isMuted}
-              onToggleAudio={() => setIsMuted(!isMuted)}
-              onEndInterview={() => handleEndInterview()}
-              isRecording={isRecording}
-              onToggleRecording={toggleRecording}
-              onHoldToRecord={handleHoldToRecord}
-            />
-          </div>
-          
-          {/* Proctoring Warnings */}
-          <div className="mt-4">
-            <ProctoringWarnings />
-          </div>
-        </div>
-      </div>
-
-      {/* Debug tools */}
-      <div className="fixed bottom-4 right-4 z-50">
-        <button
-          onClick={() => setShowDebugger(true)}
-          className="bg-gray-800 text-white p-2 rounded-full shadow-lg hover:bg-gray-700"
-          title="Debug Connection"
-        >
-          <AlertTriangle size={20} />
-        </button>
-      </div>
-      
-      {/* {showDebugger && (
-        <InterviewDebug 
-          applicationId={id || ""} 
-          onClose={() => setShowDebugger(false)} 
+      {/* Controls at the bottom */}
+      <div className="w-full">
+        <InterviewControls
+          isMuted={isMuted}
+          onEndInterview={() => handleEndInterview()}
+          isRecording={isRecording}
+          onHoldToRecord={handleHoldToRecord}
+          isAudioPlaying={isPlayingAudio}
         />
-      )} */}
+      </div>
     </div>
   );
 }
