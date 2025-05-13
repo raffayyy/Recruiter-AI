@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, MicOff } from 'lucide-react';
 
 interface Warning {
   id: string;
@@ -8,12 +7,19 @@ interface Warning {
   type: 'movement' | 'face' | 'audio' | 'objects';
 }
 
-export function ProctoringWarnings() {
+interface ProctoringWarningsProps {
+  showMicrophoneWarning?: boolean;
+}
+
+export function ProctoringWarnings({ showMicrophoneWarning = false }: ProctoringWarningsProps) {
   const [warnings, setWarnings] = useState<Warning[]>([]);
 
   // Simulate proctoring warnings
   useEffect(() => {
-    const warningTypes = [
+    // Disable random warnings for now (can be enabled later)
+    return;
+    
+    const warningTypes: Array<Omit<Warning, 'id'>> = [
       {
         type: 'movement',
         message: 'Please remain centered in the camera view',
@@ -57,10 +63,17 @@ export function ProctoringWarnings() {
     return () => clearTimeout(timeout);
   }, [warnings]);
 
-  if (warnings.length === 0) return null;
+  if (warnings.length === 0 && !showMicrophoneWarning) return null;
 
   return (
     <div className="absolute bottom-4 left-4 right-4 space-y-2">
+      {showMicrophoneWarning && (
+        <div className="flex items-center gap-2 rounded-lg bg-red-500 bg-opacity-90 px-4 py-2 text-white">
+          <MicOff className="h-5 w-5" />
+          <span>Microphone issue detected. Please check your microphone settings.</span>
+        </div>
+      )}
+      
       {warnings.map(warning => (
         <div
           key={warning.id}

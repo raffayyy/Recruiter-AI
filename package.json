@@ -10,20 +10,20 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@hookform/resolvers": "^3.3.4",
     "@react-three/drei": "^9.99.0",
     "@react-three/fiber": "^8.15.16",
-    "three": "^0.161.0",
+    "axios": "^1.6.7",
+    "clsx": "^2.1.0",
+    "jwt-decode": "^4.0.0",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.22.3",
-    "axios": "^1.6.7",
-    "jwt-decode": "^4.0.0",
     "react-hook-form": "^7.51.0",
-    "zod": "^3.22.4",
-    "@hookform/resolvers": "^3.3.4",
-    "clsx": "^2.1.0",
-    "tailwind-merge": "^2.2.1"
+    "react-router-dom": "^6.22.3",
+    "tailwind-merge": "^2.2.1",
+    "three": "^0.161.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

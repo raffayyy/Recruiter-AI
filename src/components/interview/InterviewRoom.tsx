@@ -8,7 +8,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Clock, AlertTriangle } from "lucide-react";
 import { useWebSocket } from "../../hooks/useWebSocket";
 import api from "../../lib/api";
-import { InterviewDebug } from "./InterviewDebug";
+// import { InterviewDebug } from "./InterviewDebug";
 
 // 15 minutes interview duration
 const INTERVIEW_DURATION = 15 * 60; // seconds
@@ -27,62 +27,342 @@ export function InterviewRoom() {
   const { id } = useParams();
   const [interviewStarted, setInterviewStarted] = useState(false);
   const [showDebugger, setShowDebugger] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
+  const lastProcessedMessageRef = useRef<number>(-1);
 
   // Timer state
   const [timeRemaining, setTimeRemaining] = useState(INTERVIEW_DURATION);
   const [showTimeWarning, setShowTimeWarning] = useState(false);
 
+  // WebSocket configuration
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsHost = import.meta.env.VITE_WS_HOST || window.location.hostname;
   const wsPort = import.meta.env.VITE_WS_PORT || '8000';
   const wsUrl = `${wsProtocol}//${wsHost}:${wsPort}`;
   const wsEndpoint = `${wsUrl}/interview/ws/${id}`;
   
-  // Add debugging information
-  console.log("Using WebSocket URL:", wsEndpoint);
-  console.log("Token available:", !!localStorage.getItem("access_token"));
-  // Use the websocket hook
+  // Log only once on initial render
+  const hasLoggedRef = useRef(false);
+  if (!hasLoggedRef.current) {
+    console.log("Using WebSocket URL:", wsEndpoint);
+    console.log("Token available:", !!localStorage.getItem("access_token"));
+    hasLoggedRef.current = true;
+  }
+  
+  // Use the websocket hook with stable URL
   const { isConnected, messages, sendMessage } = useWebSocket(wsEndpoint);
+  const corsTestRunRef = useRef(false);
+  const startInterviewRunRef = useRef(false);
+  
+  // Add these new states for automatic conversation
+  const [isAutomaticMode, setIsAutomaticMode] = useState(true); // Default to automatic mode
+  const [silenceTimer, setSilenceTimer] = useState<number | null>(null);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const silenceThreshold = 15; // Threshold for silence detection
+  const silenceTimeout = 2000; // Stop recording after 2 seconds of silence
+  const maxRecordingTime = 20000; // Maximum recording time (20 seconds)
+  const recordingTimerRef = useRef<number | null>(null);
+  
+  // Move handleEndInterview inside the component
+  const handleEndInterview = (isAutoSubmit = false) => {
+    if (
+      isAutoSubmit ||
+      confirm("Are you sure you want to end the interview?")
+    ) {
+      // Stop recording if active
+      if (isRecording && mediaRecorder) {
+        stopRecording();
+      }
 
-  // Add this right after the socket hook definition
-  useEffect(() => {
-    // Enhanced connection debugging
-    console.log("WebSocket connection state:", {
-      isConnected,
-      endpoint: wsEndpoint,
-      messagesCount: messages.length
-    });
+      // Stop all media tracks
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
 
-    if (!isConnected) {
-      // Log additional information for debugging
-      const corsTest = async () => {
-        try {
-          const testEndpoint = `http://${wsHost}:${wsPort}/interview/start/${id}`;
-          console.log("Testing HTTP endpoint:", testEndpoint);
-          
-          const response = await fetch(testEndpoint, {
-            method: 'HEAD',
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem("access_token")}`,
-            }
-          });
-          
-          console.log("HTTP endpoint test result:", {
-            status: response.status,
-            ok: response.ok,
-            headers: {
-              'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
-              'server': response.headers.get('server')
-            }
-          });
-        } catch (error) {
-          console.error("HTTP endpoint test failed:", error);
-        }
-      };
-      
-      corsTest();
+      // Navigate to completion page
+      navigate("/interview-complete", {
+        state: {
+          autoSubmitted: isAutoSubmit,
+          applicationId: id,
+        },
+      });
     }
-  }, [isConnected, wsEndpoint, wsHost, wsPort, id, messages.length]);
+  };
+
+  // Add this effect to initialize audio context and analyser for silence detection
+  useEffect(() => {
+    if (stream && isAutomaticMode) {
+      try {
+        const context = new AudioContext();
+        const analyserNode = context.createAnalyser();
+        analyserNode.fftSize = 256;
+        analyserNode.smoothingTimeConstant = 0.8;
+        
+        const source = context.createMediaStreamSource(stream);
+        source.connect(analyserNode);
+        // Don't connect to destination to avoid feedback
+        
+        setAudioContext(context);
+        setAnalyser(analyserNode);
+        console.log("Audio context and analyser initialized for silence detection");
+      } catch (err) {
+        console.error("Error setting up audio context:", err);
+      }
+    }
+    
+    return () => {
+      if (audioContext) {
+        try {
+          audioContext.close();
+        } catch (err) {
+          console.error("Error closing audio context:", err);
+        }
+      }
+    };
+  }, [stream, isAutomaticMode]);
+
+  // Add this function for detecting silence
+  function detectSilence() {
+    if (!analyser || !isRecording) return;
+    
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(dataArray);
+    
+    // Calculate average volume level
+    const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+    
+    if (average < silenceThreshold) {
+      // If silent and no timer is set, start the silence timer
+      if (!silenceTimer) {
+        console.log("Silence detected, starting silence timer");
+        const timer = setTimeout(() => {
+          console.log("Silence timer completed, stopping recording");
+          stopRecording();
+          setSilenceTimer(null);
+        }, silenceTimeout);
+        setSilenceTimer(timer);
+      }
+    } else {
+      // If there's sound and a timer is set, clear it
+      if (silenceTimer) {
+        console.log("Sound detected, clearing silence timer");
+        clearTimeout(silenceTimer);
+        setSilenceTimer(null);
+      }
+    }
+  }
+
+  // Add this effect to run silence detection
+  useEffect(() => {
+    let animationFrame: number;
+    
+    if (isRecording && isAutomaticMode && analyser) {
+      const checkSilence = () => {
+        detectSilence();
+        animationFrame = requestAnimationFrame(checkSilence);
+      };
+      animationFrame = requestAnimationFrame(checkSilence);
+    }
+    
+    return () => {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, [isRecording, isAutomaticMode, analyser]);
+
+  // Modify the audio playback section in the message processing useEffect
+  useEffect(() => {
+    // Only process new messages
+    if (messages.length > 0 && lastProcessedMessageRef.current < messages.length - 1) {
+      const messageIndex = messages.length - 1;
+      const latestMessage = messages[messageIndex];
+      console.log("Processing new message:", latestMessage);
+      
+      lastProcessedMessageRef.current = messageIndex;
+
+      if (latestMessage.type === "question" && typeof latestMessage.question === "string") {
+        setServerQuestion(latestMessage.question);
+      } else if (latestMessage.type === "audio") {
+        // Ensure we're not already playing audio
+        if (isPlayingAudio) {
+          console.log("Already playing audio, skipping");
+          return;
+        }
+        
+        // Set playing state immediately to prevent parallel attempts
+        setIsPlayingAudio(true);
+        
+        // Clean up any previous audio playback
+        if (audioElementRef.current) {
+          // Use try-catch to handle potential errors during cleanup
+          try {
+            audioElementRef.current.pause();
+            audioElementRef.current.src = '';
+          } catch (err) {
+            console.error("Error cleaning up previous audio:", err);
+          }
+          audioElementRef.current = null;
+        }
+        
+        // Small delay to ensure cleanup is complete
+        setTimeout(() => {
+          try {
+            let audioBase64;
+            let contentType = "audio/ogg";
+            
+            // Handle different audio data formats from backend
+            if (typeof latestMessage.audio_data === 'string') {
+              // Direct base64 string
+              audioBase64 = latestMessage.audio_data;
+            } else if (latestMessage.audio_data && typeof latestMessage.audio_data === 'object') {
+              // Object with audio_base64 property - use type assertion with interface
+              interface AudioData {
+                audio_base64?: string;
+                content_type?: string;
+              }
+              
+              const audioData = latestMessage.audio_data as AudioData;
+              
+              if (audioData.audio_base64) {
+                audioBase64 = audioData.audio_base64;
+                
+                if (audioData.content_type) {
+                  contentType = audioData.content_type;
+                }
+              }
+            }
+            
+            if (audioBase64) {
+              console.log(`Playing audio (format: ${contentType})`);
+              
+              // Convert base64 to binary
+              const binary = atob(audioBase64);
+              const array = new Uint8Array(binary.length);
+              for (let i = 0; i < binary.length; i++) {
+                array[i] = binary.charCodeAt(i);
+              }
+              
+              // Create blob and URL
+              const blob = new Blob([array], { type: contentType });
+              const url = URL.createObjectURL(blob);
+              
+              // Create new audio element
+              const audio = new Audio();
+              
+              // Set up all event handlers before setting the source
+              audio.onended = () => {
+                console.log("Audio playback finished");
+                if (audioElementRef.current === audio) {
+                  audioElementRef.current = null;
+                }
+                URL.revokeObjectURL(url);
+                setIsPlayingAudio(false);
+              };
+              
+              audio.onerror = (e) => {
+                console.error("Audio playback error:", e);
+                if (audioElementRef.current === audio) {
+                  audioElementRef.current = null;
+                }
+                URL.revokeObjectURL(url);
+                setIsPlayingAudio(false);
+              };
+              
+              // Store reference to new audio element
+              audioElementRef.current = audio;
+              
+              // Set source
+              audio.src = url;
+              
+              // Use a small delay before playing to ensure browser is ready
+              setTimeout(() => {
+                if (audioElementRef.current === audio) {
+                  audio.play().catch((err) => {
+                    console.error("Failed to play audio:", err);
+                    if (audioElementRef.current === audio) {
+                      audioElementRef.current = null;
+                    }
+                    URL.revokeObjectURL(url);
+                    setIsPlayingAudio(false);
+                  });
+                } else {
+                  // Another audio element was created in the meantime
+                  URL.revokeObjectURL(url);
+                  setIsPlayingAudio(false);
+                }
+              }, 100);
+            } else {
+              console.error("No valid audio data found in message", latestMessage);
+              setIsPlayingAudio(false);
+            }
+          } catch (err) {
+            console.error("Error processing audio data:", err);
+            setIsPlayingAudio(false);
+          }
+        }, 50); // Small delay for cleanup
+      }
+    }
+    
+    // Cleanup function
+    return () => {
+      // Make sure to properly clean up audio elements when component unmounts
+      if (audioElementRef.current) {
+        try {
+          audioElementRef.current.pause();
+          audioElementRef.current.src = '';
+        } catch (err) {
+          console.error("Error in cleanup:", err);
+        }
+        audioElementRef.current = null;
+      }
+    };
+  }, [messages, isPlayingAudio]);
+
+  // Add this cleanup effect for automatic mode timers
+  useEffect(() => {
+    return () => {
+      // Clean up timers on component unmount
+      if (silenceTimer) {
+        clearTimeout(silenceTimer);
+      }
+      if (recordingTimerRef.current) {
+        clearTimeout(recordingTimerRef.current);
+      }
+    };
+  }, [silenceTimer]);
+
+  // Modify the toggleRecording function to update UI indicators
+  function toggleRecording() {
+    console.log("Toggle recording called, current state:", isRecording);
+    if (!isRecording) {
+      // Start recording - will set isRecording to true inside startRecording
+      startRecording();
+    } else {
+      // Stop recording - will set isRecording to false inside the recorder's onstop handler
+      stopRecording();
+    }
+  }
+
+  // Handle press-and-hold recording
+  const handleHoldToRecord = useCallback((isHolding: boolean) => {
+    console.log("Hold to record:", isHolding);
+    
+    if (isHolding) {
+      // Start recording when button is pressed
+      if (!isRecording && stream) {
+        startRecording();
+      }
+    } else {
+      // Stop recording when button is released
+      if (isRecording && mediaRecorder) {
+        stopRecording();
+      }
+    }
+  }, [isRecording, stream, mediaRecorder]);
 
   // Define stopRecording function using useCallback
   const stopRecording = useCallback(() => {
@@ -103,19 +383,45 @@ export function InterviewRoom() {
   // Initialize interview
   useEffect(() => {
     const startInterview = async () => {
+      if (startInterviewRunRef.current) return;
+      startInterviewRunRef.current = true;
       try {
         console.log("Starting interview...");
-        const response = await api.applications.createInterview(id!);
+        try {
+          const response = await api.applications.createInterview(id!);
 
-        if (response.status === "success") {
-          console.log("Interview created successfully");
-          setInterviewStarted(true);
-        } else {
-          console.error("Failed to start interview:", response);
-          navigate("/dashboard");
+          if (response.status === "success") {
+            console.log("Interview created successfully");
+            setInterviewStarted(true);
+          } else if (response.detail === "Interview already in progress") {
+            // If interview is already in progress, still set it as started
+            console.log("Interview already in progress, continuing...");
+            setInterviewStarted(true);
+          } else {
+            console.error("Failed to start interview:", response);
+            navigate("/dashboard");
+          }
+        } catch (error: any) {
+          // Check for the "Interview already in progress" error case
+          if (error?.response?.data?.detail === "Interview already in progress") {
+            console.log("Interview already in progress, continuing...");
+            setInterviewStarted(true);
+          } else {
+            console.error("Error starting interview:", error);
+            // Only navigate away if the WebSocket isn't connected within 10 seconds
+            const connectTimeout = setTimeout(() => {
+              if (!isConnected) {
+                alert("Failed to connect to the interview server. Please try again later.");
+                navigate("/dashboard");
+              }
+            }, 10000);
+            
+            return () => clearTimeout(connectTimeout);
+          }
         }
       } catch (error) {
-        console.error("Error starting interview:", error);
+        console.error("Unexpected error in startInterview:", error);
+        alert("An unexpected error occurred. Please try again later.");
         navigate("/dashboard");
       }
     };
@@ -123,94 +429,15 @@ export function InterviewRoom() {
     if (id && !interviewStarted) {
       startInterview();
     }
-  }, [id, interviewStarted, navigate]);
+  }, [id, interviewStarted, navigate, isConnected]);
 
-  // Process incoming messages
+  // Reset refs when component unmounts
   useEffect(() => {
-    if (messages.length > 0) {
-      const latestMessage = messages[messages.length - 1];
-      console.log("Received message:", latestMessage);
-
-      if (latestMessage.type === "question" && typeof latestMessage.question === "string") {
-        setServerQuestion(latestMessage.question);
-      } else if (latestMessage.type === "audio") {
-        try {
-          let audioBase64;
-          let contentType = "audio/ogg";
-          
-          // Handle different audio data formats from backend
-          if (typeof latestMessage.audio_data === 'string') {
-            // Direct base64 string
-            audioBase64 = latestMessage.audio_data;
-          } else if (latestMessage.audio_data && typeof latestMessage.audio_data === 'object') {
-            // Object with audio_base64 property - use type assertion with interface
-            interface AudioData {
-              audio_base64?: string;
-              content_type?: string;
-            }
-            
-            const audioData = latestMessage.audio_data as AudioData;
-            
-            if (audioData.audio_base64) {
-              audioBase64 = audioData.audio_base64;
-              
-              if (audioData.content_type) {
-                contentType = audioData.content_type;
-              }
-            }
-          }
-          
-          if (audioBase64) {
-            console.log(`Playing audio (format: ${contentType})`);
-            
-            // Convert base64 to binary
-            const binary = atob(audioBase64);
-            const array = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-              array[i] = binary.charCodeAt(i);
-            }
-            
-            // Create blob and URL
-            const blob = new Blob([array], { type: contentType });
-            const url = URL.createObjectURL(blob);
-            
-            // Play the audio
-            const audio = new Audio(url);
-            audio.onended = () => {
-              URL.revokeObjectURL(url);
-              console.log("Audio playback finished");
-            };
-            audio.onerror = (e) => {
-              console.error("Audio playback error:", e);
-              URL.revokeObjectURL(url);
-            };
-
-            // Play with error handling
-            audio.play().catch((err) => {
-              console.error("Failed to play audio:", err);
-              // Try alternative method if first attempt fails
-              setTimeout(() => {
-                const newAudio = document.createElement("audio");
-                newAudio.src = url;
-                document.body.appendChild(newAudio);
-                newAudio.play()
-                  .then(() => console.log("Fallback audio playing"))
-                  .catch(e => console.error("Fallback audio failed:", e));
-                newAudio.onended = () => {
-                  document.body.removeChild(newAudio);
-                  URL.revokeObjectURL(url);
-                };
-              }, 100);
-            });
-          } else {
-            console.error("No valid audio data found in message", latestMessage);
-          }
-        } catch (err) {
-          console.error("Error processing audio data:", err);
-        }
-      }
-    }
-  }, [messages]);
+    return () => {
+      corsTestRunRef.current = false;
+      startInterviewRunRef.current = false;
+    };
+  }, []);
 
   // Timer effect with auto-submit
   useEffect(() => {
@@ -267,6 +494,7 @@ export function InterviewRoom() {
     ).padStart(2, "0")}`;
   };
 
+  // Update the sendAudioToBackend function
   function sendAudioToBackend(audioBlob: Blob) {
     if (!isConnected) {
       console.warn("WebSocket not connected, can't send audio");
@@ -274,76 +502,143 @@ export function InterviewRoom() {
     }
 
     console.log("Sending audio to backend...");
+    
+    // Log blob details
+    console.log("Audio blob details:", {
+      size: audioBlob.size,
+      type: audioBlob.type
+    });
+    
     const reader = new FileReader();
 
     reader.onloadend = () => {
       try {
-        // Process audio data based on the result type
-        let base64Audio = "";
-        
-        if (reader.result instanceof ArrayBuffer) {
-          // Convert ArrayBuffer to base64
-          const binary = String.fromCharCode(...new Uint8Array(reader.result));
-          base64Audio = btoa(binary);
-        } else if (typeof reader.result === 'string') {
-          // Handle string result directly
-          base64Audio = btoa(reader.result);
-        } else {
-          throw new Error("Unexpected FileReader result type");
+        if (!reader.result) {
+          throw new Error("FileReader result is null");
         }
         
-        // Log size for debugging
-        console.log(`Audio data size: ${base64Audio.length} bytes`);
+        // Get base64 data from result
+        let base64Audio = "";
         
-        // The WebSocket client will format this correctly to match backend
-        sendMessage({
+        if (typeof reader.result === 'string') {
+          // Extract base64 from data URL
+          const base64Start = reader.result.indexOf('base64,');
+          if (base64Start >= 0) {
+            base64Audio = reader.result.substring(base64Start + 7);
+          }
+        }
+        
+        if (!base64Audio) {
+          throw new Error("Failed to convert audio to base64");
+        }
+        
+        // Log base64 info
+        console.log(`Audio data size: ${base64Audio.length} bytes, first 20 chars: ${base64Audio.substring(0, 20)}...`);
+        
+        // Send message to backend
+        const success = sendMessage({
           type: "response",
-          audio_data: base64Audio
+          response: base64Audio
         });
         
-        console.log("Audio sent successfully");
+        console.log("Audio send attempt result:", success ? "success" : "failed");
+        
+        // Show status notification
+        const notificationEl = document.createElement('div');
+        notificationEl.style.position = 'fixed';
+        notificationEl.style.bottom = '20px';
+        notificationEl.style.right = '20px';
+        notificationEl.style.padding = '10px 20px';
+        notificationEl.style.borderRadius = '4px';
+        notificationEl.style.color = 'white';
+        notificationEl.style.zIndex = '9999';
+        
+        if (success) {
+          notificationEl.style.backgroundColor = 'green';
+          notificationEl.textContent = `Audio sent (${base64Audio.length} bytes)`;
+        } else {
+          notificationEl.style.backgroundColor = 'red';
+          notificationEl.textContent = 'Failed to send audio';
+        }
+        
+        document.body.appendChild(notificationEl);
+        setTimeout(() => {
+          document.body.removeChild(notificationEl);
+        }, 3000);
+        
       } catch (err) {
         console.error("Error encoding audio:", err);
+        alert("Error sending audio: " + (err instanceof Error ? err.message : String(err)));
       }
     };
 
-    // For consistent browser support, read as ArrayBuffer
-    reader.readAsArrayBuffer(audioBlob);
+    reader.onerror = (error) => {
+      console.error("FileReader error:", error);
+      alert("Error reading audio data");
+    };
+
+    // Read as data URL
+    reader.readAsDataURL(audioBlob);
   }
 
+  // Simplified startRecording function
   function startRecording() {
     if (!stream) {
       console.error("No media stream available");
       return;
     }
 
-    try {
-      // Find the best supported audio format
-      const options = { mimeType: "audio/webm" };
-      
-      if (MediaRecorder.isTypeSupported("audio/webm")) {
-        console.log("Using audio/webm");
-      } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
-        console.log("Using audio/mp4");
-        options.mimeType = "audio/mp4";
-      } else if (MediaRecorder.isTypeSupported("audio/ogg")) {
-        console.log("Using audio/ogg");
-        options.mimeType = "audio/ogg";
-      } else {
-        console.log("Using default codec");
+    if (isPlayingAudio) {
+      console.warn("Cannot start recording while audio is playing");
+      return;
+    }
+
+    // First make sure any existing recorder is stopped
+    if (mediaRecorder) {
+      console.log("Stopping existing recorder before starting a new one");
+      try {
+        mediaRecorder.stop();
+      } catch (err) {
+        console.error("Error stopping existing recorder:", err);
       }
-      
-      const recorder = new MediaRecorder(stream, options);
+      setMediaRecorder(null);
+    }
+
+    // Check if audio track exists
+    const audioTracks = stream.getAudioTracks();
+    if (audioTracks.length === 0) {
+      console.error("No audio track found in the stream");
+      alert("No microphone detected. Please ensure your microphone is connected and working properly.");
+      return;
+    }
+    
+    const audioTrack = audioTracks[0];
+    console.log("Audio track status:", {
+      label: audioTrack.label,
+      enabled: audioTrack.enabled,
+      muted: audioTrack.muted,
+      readyState: audioTrack.readyState
+    });
+    
+    // Ensure track is enabled
+    audioTrack.enabled = true;
+
+    try {
+      // Create the recorder with default settings
+      const recorder = new MediaRecorder(stream);
       audioChunksRef.current = [];
       
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
-          console.log(`Audio chunk received: ${event.data.size} bytes`);
+          console.log(`Audio chunk received: ${event.data.size} bytes, type: ${event.data.type}`);
+        } else {
+          console.warn("Received empty audio chunk");
         }
       };
       
       recorder.onstop = () => {
+        console.log("MediaRecorder onstop event fired");
         setIsRecording(false);
         
         if (audioChunksRef.current.length === 0) {
@@ -351,59 +646,38 @@ export function InterviewRoom() {
           return;
         }
         
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: recorder.mimeType
-        });
+        const audioBlob = new Blob(audioChunksRef.current);
         
         console.log(`Recording complete, blob size: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
+        
+        // Log audio chunks for debugging
+        console.log("Audio chunks details:", audioChunksRef.current.map(chunk => {
+          if (chunk instanceof Blob) {
+            return { size: chunk.size, type: chunk.type };
+          } else {
+            return { type: typeof chunk };
+          }
+        }));
         
         // Send audio to backend for processing
         sendAudioToBackend(audioBlob);
       };
       
-      // Request data every 500ms for smoother interaction
-      recorder.start(500);
+      recorder.onerror = (event) => {
+        console.error("MediaRecorder error:", event);
+        setIsRecording(false);
+      };
+      
+      // Start recording immediately
+      recorder.start(1000);
       setMediaRecorder(recorder);
       setIsRecording(true);
-      console.log("Recording started");
+      console.log("Recording started with MediaRecorder state:", recorder.state);
     } catch (err) {
       console.error("Error starting recording:", err);
+      alert("Failed to start recording: " + (err instanceof Error ? err.message : String(err)));
     }
   }
-
-  function toggleRecording() {
-    if (!isRecording) {
-      startRecording();
-    } else {
-      stopRecording();
-    }
-    setIsRecording(!isRecording);
-  }
-
-  const handleEndInterview = (isAutoSubmit = false) => {
-    if (
-      isAutoSubmit ||
-      confirm("Are you sure you want to end the interview?")
-    ) {
-      // Stop recording if active
-      if (isRecording && mediaRecorder) {
-        stopRecording();
-      }
-
-      // Stop all media tracks
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-
-      // Navigate to completion page
-      navigate("/interview-complete", {
-        state: {
-          autoSubmitted: isAutoSubmit,
-          applicationId: id,
-        },
-      });
-    }
-  };
 
   // Connection status indicator
   const ConnectionStatus = () => (
@@ -488,7 +762,7 @@ export function InterviewRoom() {
         <div className="relative flex-1 mb-4 md:mb-0">
           {/* Virtual Interviewer (Main Focus) */}
           <VirtualInterviewer
-            isAnswering={!isMuted}
+            isAnswering={isRecording || !isMuted}
             question={serverQuestion}
           />
           
@@ -500,6 +774,7 @@ export function InterviewRoom() {
               onEndInterview={() => handleEndInterview()}
               isRecording={isRecording}
               onToggleRecording={toggleRecording}
+              onHoldToRecord={handleHoldToRecord}
             />
           </div>
         </div>
@@ -525,6 +800,7 @@ export function InterviewRoom() {
               onEndInterview={() => handleEndInterview()}
               isRecording={isRecording}
               onToggleRecording={toggleRecording}
+              onHoldToRecord={handleHoldToRecord}
             />
           </div>
           
@@ -546,12 +822,12 @@ export function InterviewRoom() {
         </button>
       </div>
       
-      {showDebugger && (
+      {/* {showDebugger && (
         <InterviewDebug 
           applicationId={id || ""} 
           onClose={() => setShowDebugger(false)} 
         />
-      )}
+      )} */}
     </div>
   );
 }
