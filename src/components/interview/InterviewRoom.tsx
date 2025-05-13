@@ -1,13 +1,15 @@
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { VideoPanel } from "./VideoPanel";
 import { InterviewControls } from "./InterviewControls";
 import { VirtualInterviewer } from "./VirtualInterviewer";
 import { ProctoringWarnings } from "./ProctoringWarnings";
 import { useVideoStream } from "../../hooks/useVideoStream";
 import { useNavigate, useParams } from "react-router-dom";
-import { Clock, AlertTriangle } from "lucide-react";
+import { Clock, AlertTriangle, AlertOctagon } from "lucide-react";
 import { useWebSocket } from "../../hooks/useWebSocket";
+import { useTabProctoring } from "../../hooks/useTabProctoring";
 import api from "../../lib/api";
+import { TabProctoring } from "./TabProctoring";
 // import { InterviewDebug } from "./InterviewDebug";
 
 // 15 minutes interview duration
@@ -30,6 +32,16 @@ export function InterviewRoom() {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const lastProcessedMessageRef = useRef<number>(-1);
+
+  // Tab proctoring state
+  const { tabSwitchCount, showTabWarning } = useTabProctoring({
+    maxViolations: 3,
+    onMaxViolationsReached: () => {
+      // End interview on 3rd violation
+      console.log("Maximum tab switches reached, ending interview");
+      handleEndInterview(true, "Tab switching violation");
+    }
+  });
 
   // Timer state
   const [timeRemaining, setTimeRemaining] = useState(INTERVIEW_DURATION);
@@ -66,12 +78,13 @@ export function InterviewRoom() {
   const maxRecordingTime = 20000; // Maximum recording time (20 seconds)
   const recordingTimerRef = useRef<number | null>(null);
   
-  // Move handleEndInterview inside the component
-  const handleEndInterview = (isAutoSubmit = false) => {
-    if (
-      isAutoSubmit ||
-      confirm("Are you sure you want to end the interview?")
-    ) {
+  // Expand handleEndInterview to include a reason parameter
+  const handleEndInterview = (isAutoSubmit = false, reason = "") => {
+    const confirmMessage = isAutoSubmit && reason 
+      ? `Interview ended: ${reason}`
+      : "Are you sure you want to end the interview?";
+      
+    if (isAutoSubmit || confirm(confirmMessage)) {
       // Stop recording if active
       if (isRecording && mediaRecorder) {
         stopRecording();
@@ -87,6 +100,7 @@ export function InterviewRoom() {
         state: {
           autoSubmitted: isAutoSubmit,
           applicationId: id,
+          reason: reason,
         },
       });
     }
@@ -840,6 +854,12 @@ export function InterviewRoom() {
           </span>
         </div>
         
+        {/* Tab Proctoring */}
+        <TabProctoring 
+          maxViolations={3}
+          onMaxViolationsReached={() => handleEndInterview(true, "Tab switching violation")}
+        />
+        
         {/* Timer display with improved styling */}
         <div
           className={`flex items-center gap-2 rounded-full px-3 py-1
@@ -890,6 +910,19 @@ export function InterviewRoom() {
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" />
             <span className="font-medium">2 minutes remaining!</span>
+          </div>
+        </div>
+      )}
+      
+      {/* Tab switch warning */}
+      {showTabWarning && (
+        <div className="fixed top-16 left-4 z-50 animate-pulse rounded-lg bg-red-600 p-3 text-white shadow-lg">
+          <div className="flex items-center gap-2">
+            <AlertOctagon className="h-5 w-5" />
+            <span className="font-medium">
+              Tab switching detected! ({tabSwitchCount}/3)
+              {tabSwitchCount >= 2 && " - Final warning!"}
+            </span>
           </div>
         </div>
       )}
