@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '../ui/Button';
-import { Mic, XCircle } from 'lucide-react';
+import { Mic, MicOff, XCircle } from 'lucide-react';
 
 interface InterviewControlsProps {
   isMuted?: boolean;
@@ -20,38 +20,45 @@ export function InterviewControls({
   onHoldToRecord,
   isAudioPlaying = false,
 }: InterviewControlsProps) {
+  // Function to toggle recording state
+  const toggleRecording = () => {
+    if (isAudioPlaying) return; // Don't toggle if audio is playing
+    if (isRecording) {
+      onHoldToRecord?.(false); // Stop recording
+    } else {
+      onHoldToRecord?.(true); // Start recording
+    }
+  };
+
   return (
     <div className="flex items-center justify-between bg-gray-900 p-4 border-t border-gray-800">
-      {/* Main hold-to-talk button - centered and prominent */}
+      {/* Main speak button - centered and prominent */}
       <div className="flex-1 flex justify-center">
         {onHoldToRecord && (
           <Button
             variant="outline"
             size="lg"
-            className={`py-6 px-8 text-lg font-medium rounded-xl bg-blue-600 hover:bg-blue-700 text-white 
+            className={`py-6 px-8 text-lg font-medium rounded-xl ${
+              isRecording 
+                ? 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30' 
+                : 'bg-blue-600 hover:bg-blue-700'
+            } text-white 
               transition-all duration-150 focus:ring-4 focus:ring-blue-500/50 focus:outline-none
-              ${isRecording ? 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30 scale-105' : ''}
               ${isAudioPlaying ? 'opacity-50 cursor-not-allowed' : ''}`}
-            onMouseDown={() => !isAudioPlaying && onHoldToRecord(true)}
-            onMouseUp={() => !isAudioPlaying && onHoldToRecord(false)}
-            onMouseLeave={() => !isAudioPlaying && onHoldToRecord(false)}
-            onTouchStart={() => !isAudioPlaying && onHoldToRecord(true)}
-            onTouchEnd={() => !isAudioPlaying && onHoldToRecord(false)}
-            // Make it accessible via keyboard
-            onKeyDown={(e) => {
-              if (!isAudioPlaying && (e.key === 'Enter' || e.key === ' ')) {
-                onHoldToRecord(true);
-              }
-            }}
-            onKeyUp={(e) => {
-              if (!isAudioPlaying && (e.key === 'Enter' || e.key === ' ')) {
-                onHoldToRecord(false);
-              }
-            }}
+            onClick={toggleRecording}
             disabled={isAudioPlaying}
           >
-            <Mic className={`mr-3 h-5 w-5 ${isRecording ? 'animate-pulse' : ''}`} />
-            {isRecording ? 'Recording...' : isAudioPlaying ? 'Please Wait...' : 'Hold to Speak'}
+            {isRecording ? (
+              <>
+                <MicOff className="mr-3 h-5 w-5 animate-pulse" />
+                Done Speaking
+              </>
+            ) : (
+              <>
+                <Mic className="mr-3 h-5 w-5" />
+                {isAudioPlaying ? 'Please Wait...' : 'Click to Speak'}
+              </>
+            )}
           </Button>
         )}
       </div>

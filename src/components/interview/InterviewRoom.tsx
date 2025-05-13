@@ -56,7 +56,7 @@ export function InterviewRoom() {
   const startInterviewRunRef = useRef(false);
   
   // Add these new states for automatic conversation
-  const [isAutomaticMode, setIsAutomaticMode] = useState(true); // Default to automatic mode
+  const [isAutomaticMode, setIsAutomaticMode] = useState(false); // Change to false to disable automatic mode
   const [silenceTimer, setSilenceTimer] = useState<number | null>(null);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
@@ -94,24 +94,25 @@ export function InterviewRoom() {
 
   // Add this effect to initialize audio context and analyser for silence detection
   useEffect(() => {
-    if (stream && isAutomaticMode) {
-      try {
-        const context = new AudioContext();
-        const analyserNode = context.createAnalyser();
-        analyserNode.fftSize = 256;
-        analyserNode.smoothingTimeConstant = 0.8;
-        
-        const source = context.createMediaStreamSource(stream);
-        source.connect(analyserNode);
-        // Don't connect to destination to avoid feedback
-        
-        setAudioContext(context);
-        setAnalyser(analyserNode);
-        console.log("Audio context and analyser initialized for silence detection");
-      } catch (err) {
-        console.error("Error setting up audio context:", err);
-      }
-    }
+    // Disabled audio context setup since we're not using silence detection
+    // if (stream && isAutomaticMode) {
+    //   try {
+    //     const context = new AudioContext();
+    //     const analyserNode = context.createAnalyser();
+    //     analyserNode.fftSize = 256;
+    //     analyserNode.smoothingTimeConstant = 0.8;
+    //     
+    //     const source = context.createMediaStreamSource(stream);
+    //     source.connect(analyserNode);
+    //     // Don't connect to destination to avoid feedback
+    //     
+    //     setAudioContext(context);
+    //     setAnalyser(analyserNode);
+    //     console.log("Audio context and analyser initialized for silence detection");
+    //   } catch (err) {
+    //     console.error("Error setting up audio context:", err);
+    //   }
+    // }
     
     return () => {
       if (audioContext) {
@@ -126,49 +127,51 @@ export function InterviewRoom() {
 
   // Add this function for detecting silence
   function detectSilence() {
-    if (!analyser || !isRecording) return;
-    
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    analyser.getByteFrequencyData(dataArray);
-    
-    // Calculate average volume level
-    const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-    
-    if (average < silenceThreshold) {
-      // If silent and no timer is set, start the silence timer
-      if (!silenceTimer) {
-        console.log("Silence detected, starting silence timer");
-        const timer = setTimeout(() => {
-          console.log("Silence timer completed, stopping recording");
-          stopRecording();
-          setSilenceTimer(null);
-        }, silenceTimeout);
-        setSilenceTimer(timer);
-      }
-    } else {
-      // If there's sound and a timer is set, clear it
-      if (silenceTimer) {
-        console.log("Sound detected, clearing silence timer");
-        clearTimeout(silenceTimer);
-        setSilenceTimer(null);
-      }
-    }
+    // Disabled silence detection
+    // if (!analyser || !isRecording) return;
+    // 
+    // const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    // analyser.getByteFrequencyData(dataArray);
+    // 
+    // // Calculate average volume level
+    // const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+    // 
+    // if (average < silenceThreshold) {
+    //   // If silent and no timer is set, start the silence timer
+    //   if (!silenceTimer) {
+    //     console.log("Silence detected, starting silence timer");
+    //     const timer = setTimeout(() => {
+    //       console.log("Silence timer completed, stopping recording");
+    //       stopRecording();
+    //       setSilenceTimer(null);
+    //     }, silenceTimeout);
+    //     setSilenceTimer(timer);
+    //   }
+    // } else {
+    //   // If there's sound and a timer is set, clear it
+    //   if (silenceTimer) {
+    //     console.log("Sound detected, clearing silence timer");
+    //     clearTimeout(silenceTimer);
+    //     setSilenceTimer(null);
+    //   }
+    // }
   }
 
   // Add this effect to run silence detection
   useEffect(() => {
-    let animationFrame: number;
+    let animationFrame: number | undefined;
     
-    if (isRecording && isAutomaticMode && analyser) {
-      const checkSilence = () => {
-        detectSilence();
-        animationFrame = requestAnimationFrame(checkSilence);
-      };
-      animationFrame = requestAnimationFrame(checkSilence);
-    }
+    // Disabled silence detection completely
+    // if (isRecording && isAutomaticMode && analyser) {
+    //   const checkSilence = () => {
+    //     detectSilence();
+    //     animationFrame = requestAnimationFrame(checkSilence);
+    //   };
+    //   animationFrame = requestAnimationFrame(checkSilence);
+    // }
     
     return () => {
-      if (animationFrame) {
+      if (animationFrame !== undefined) {
         cancelAnimationFrame(animationFrame);
       }
     };
@@ -451,7 +454,7 @@ export function InterviewRoom() {
     }
   }
 
-  // Update the startRecording function to include better error handling and state management
+  // Update the startRecording function
   function startRecording() {
     if (!stream) {
       console.error("No media stream available");
@@ -466,6 +469,12 @@ export function InterviewRoom() {
     if (isRecording) {
       console.warn("Already recording, stopping previous recording first");
       stopRecording();
+    }
+
+    // Clear any existing max recording timeout
+    if (recordingTimerRef.current) {
+      clearTimeout(recordingTimerRef.current);
+      recordingTimerRef.current = null;
     }
 
     // First make sure any existing recorder is stopped and cleaned up
@@ -556,6 +565,17 @@ export function InterviewRoom() {
       setMediaRecorder(recorder);
       setIsRecording(true);
       console.log("Recording started with MediaRecorder state:", recorder.state);
+      
+      // Disabled automatic maximum recording time limit
+      // if (isAutomaticMode) {
+      //   // Set maximum recording time safety limit
+      //   recordingTimerRef.current = setTimeout(() => {
+      //     console.log("Maximum recording time reached, stopping recording");
+      //     if (isRecording && mediaRecorder) {
+      //       stopRecording();
+      //     }
+      //   }, maxRecordingTime);
+      // }
     } catch (err) {
       console.error("Error starting recording:", err);
       alert("Failed to start recording: " + (err instanceof Error ? err.message : String(err)));
