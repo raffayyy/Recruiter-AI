@@ -1,11 +1,10 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { VideoPanel } from "./VideoPanel";
-import { InterviewControls } from "./InterviewControls";
 import { VirtualInterviewer } from "./VirtualInterviewer";
 import { ProctoringWarnings } from "./ProctoringWarnings";
 import { useVideoStream } from "../../hooks/useVideoStream";
 import { useNavigate, useParams } from "react-router-dom";
-import { Clock, AlertTriangle, AlertOctagon } from "lucide-react";
+import { Clock, AlertTriangle, AlertOctagon, Mic, MicOff, XCircle } from "lucide-react";
 import { useWebSocket } from "../../hooks/useWebSocket";
 import { useTabProctoring } from "../../hooks/useTabProctoring";
 import api from "../../lib/api";
@@ -19,6 +18,7 @@ export function InterviewRoom() {
   const navigate = useNavigate();
   const [isMuted, setIsMuted] = useState(true); // Start muted by default
   const [isVideoOn, setIsVideoOn] = useState(true);
+  const [speaking, setSpeaking] = useState(false);
   const { stream, error } = useVideoStream();
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
     null
@@ -57,8 +57,8 @@ export function InterviewRoom() {
   // Log only once on initial render
   const hasLoggedRef = useRef(false);
   if (!hasLoggedRef.current) {
-    console.log("Using WebSocket URL:", wsEndpoint);
-    console.log("Token available:", !!localStorage.getItem("access_token"));
+  console.log("Using WebSocket URL:", wsEndpoint);
+  console.log("Token available:", !!localStorage.getItem("access_token"));
     hasLoggedRef.current = true;
   }
   
@@ -235,67 +235,69 @@ export function InterviewRoom() {
         
         // Small delay to ensure cleanup is complete
         setTimeout(() => {
-          try {
-            let audioBase64;
-            let contentType = "audio/ogg";
-            
-            // Handle different audio data formats from backend
-            if (typeof latestMessage.audio_data === 'string') {
-              // Direct base64 string
-              audioBase64 = latestMessage.audio_data;
-            } else if (latestMessage.audio_data && typeof latestMessage.audio_data === 'object') {
-              // Object with audio_base64 property - use type assertion with interface
-              interface AudioData {
-                audio_base64?: string;
-                content_type?: string;
-              }
-              
-              const audioData = latestMessage.audio_data as AudioData;
-              
-              if (audioData.audio_base64) {
-                audioBase64 = audioData.audio_base64;
-                
-                if (audioData.content_type) {
-                  contentType = audioData.content_type;
-                }
-              }
+        try {
+          let audioBase64;
+          let contentType = "audio/ogg";
+          
+          // Handle different audio data formats from backend
+          if (typeof latestMessage.audio_data === 'string') {
+            // Direct base64 string
+            audioBase64 = latestMessage.audio_data;
+          } else if (latestMessage.audio_data && typeof latestMessage.audio_data === 'object') {
+            // Object with audio_base64 property - use type assertion with interface
+            interface AudioData {
+              audio_base64?: string;
+              content_type?: string;
             }
             
-            if (audioBase64) {
-              console.log(`Playing audio (format: ${contentType})`);
+            const audioData = latestMessage.audio_data as AudioData;
+            
+            if (audioData.audio_base64) {
+              audioBase64 = audioData.audio_base64;
               
-              // Convert base64 to binary
-              const binary = atob(audioBase64);
-              const array = new Uint8Array(binary.length);
-              for (let i = 0; i < binary.length; i++) {
-                array[i] = binary.charCodeAt(i);
+              if (audioData.content_type) {
+                contentType = audioData.content_type;
               }
-              
-              // Create blob and URL
-              const blob = new Blob([array], { type: contentType });
-              const url = URL.createObjectURL(blob);
-              
+            }
+          }
+          
+          if (audioBase64) {
+            console.log(`Playing audio (format: ${contentType})`);
+            setSpeaking(true);
+            
+            // Convert base64 to binary
+            const binary = atob(audioBase64);
+            const array = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+              array[i] = binary.charCodeAt(i);
+            }
+            
+            // Create blob and URL
+            const blob = new Blob([array], { type: contentType });
+            const url = URL.createObjectURL(blob);
+            
               // Create new audio element
               const audio = new Audio();
               
               // Set up all event handlers before setting the source
-              audio.onended = () => {
+            audio.onended = () => {
                 console.log("Audio playback finished");
                 clearTimeout(safetyTimeout);
                 if (audioElementRef.current === audio) {
                   audioElementRef.current = null;
                 }
-                URL.revokeObjectURL(url);
+              URL.revokeObjectURL(url);
                 setIsPlayingAudio(false);
-              };
+                setSpeaking(false);
+            };
               
-              audio.onerror = (e) => {
-                console.error("Audio playback error:", e);
+            audio.onerror = (e) => {
+              console.error("Audio playback error:", e);
                 clearTimeout(safetyTimeout);
                 if (audioElementRef.current === audio) {
                   audioElementRef.current = null;
                 }
-                URL.revokeObjectURL(url);
+              URL.revokeObjectURL(url);
                 setIsPlayingAudio(false);
               };
               
@@ -324,8 +326,8 @@ export function InterviewRoom() {
                   setIsPlayingAudio(false);
                 }
               }, 100);
-            } else {
-              console.error("No valid audio data found in message", latestMessage);
+          } else {
+            console.error("No valid audio data found in message", latestMessage);
               clearTimeout(safetyTimeout);
               setIsPlayingAudio(false);
             }
@@ -455,18 +457,6 @@ export function InterviewRoom() {
       }
     }
   }, [isRecording, stream, mediaRecorder, stopRecording, isPlayingAudio]);
-
-  // Modify the toggleRecording function to update UI indicators
-  function toggleRecording() {
-    console.log("Toggle recording called, current state:", isRecording);
-    if (!isRecording) {
-      // Start recording - will set isRecording to true inside startRecording
-      startRecording();
-    } else {
-      // Stop recording - will set isRecording to false inside the recorder's onstop handler
-      stopRecording();
-    }
-  }
 
   // Update the startRecording function
   function startRecording() {
@@ -842,7 +832,7 @@ export function InterviewRoom() {
     <div className="flex flex-col h-screen bg-gray-950">
       {/* Status bar with timer and connection status */}
       <div className="flex items-center justify-between bg-gray-900 p-2 px-4 border-b border-gray-800">
-        {/* Connection status indicator */}
+      {/* Connection status indicator */}
         <div className="flex items-center gap-2">
           <div
             className={`h-2 w-2 rounded-full ${
@@ -882,6 +872,9 @@ export function InterviewRoom() {
           <VirtualInterviewer
             isAnswering={isRecording}
             question={serverQuestion}
+            isPlaying={isPlayingAudio}
+            modelPath="/models/interviewer.glb"
+            speaking={speaking}
           />
         </div>
         
@@ -898,12 +891,53 @@ export function InterviewRoom() {
           </div>
           
           {/* Interview Tips */}
-          <div className="flex-1">
+          <div className="mb-4">
             <ProctoringWarnings />
+          </div>
+          
+          {/* Interview Controls - Moved here from bottom */}
+          <div className="mt-2 pt-4">
+            <div className="flex flex-col space-y-3">
+              {/* Speak button */}
+              <button
+                className={`w-full py-3 px-4 rounded-lg text-white font-medium flex items-center justify-center
+                  ${isRecording 
+                    ? 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/20' 
+                    : 'bg-blue-600 hover:bg-blue-700'
+                  } transition-all duration-150
+                  ${isPlayingAudio ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={() => handleHoldToRecord(!isRecording)}
+                disabled={isPlayingAudio}
+              >
+                {isRecording ? (
+                  <>
+                    <MicOff className="mr-2 h-5 w-5 animate-pulse" />
+                    <span className="flex items-center">
+                      Stop Recording
+                      <span className="ml-2 h-2 w-2 rounded-full bg-white animate-pulse"></span>
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Mic className="mr-2 h-5 w-5" />
+                    {isPlayingAudio ? 'Please Wait...' : 'Click to Speak'}
+                  </>
+                )}
+              </button>
+              
+              {/* End Interview button */}
+              <button
+                className="w-full py-3 px-4 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-all duration-150 flex items-center justify-center"
+                onClick={() => handleEndInterview()}
+              >
+                <XCircle className="mr-2 h-5 w-5" />
+                End Interview
+              </button>
+            </div>
           </div>
         </div>
       </div>
-      
+
       {/* Time warning */}
       {showTimeWarning && (
         <div className="fixed top-16 right-4 z-50 animate-pulse rounded-lg bg-red-600 p-3 text-white shadow-lg">
@@ -911,7 +945,7 @@ export function InterviewRoom() {
             <AlertTriangle className="h-5 w-5" />
             <span className="font-medium">2 minutes remaining!</span>
           </div>
-        </div>
+      </div>
       )}
       
       {/* Tab switch warning */}
@@ -926,17 +960,6 @@ export function InterviewRoom() {
           </div>
         </div>
       )}
-
-      {/* Controls at the bottom */}
-      <div className="w-full">
-        <InterviewControls
-          isMuted={isMuted}
-          onEndInterview={() => handleEndInterview()}
-          isRecording={isRecording}
-          onHoldToRecord={handleHoldToRecord}
-          isAudioPlaying={isPlayingAudio}
-        />
-      </div>
     </div>
   );
 }

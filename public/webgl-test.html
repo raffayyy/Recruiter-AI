@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebGL Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f0f0f0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      color: #333;
+    }
+    canvas {
+      width: 100%;
+      height: 300px;
+      border: 1px solid #ddd;
+      margin: 20px 0;
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+    }
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+    pre {
+      background-color: #f8f9fa;
+      padding: 10px;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>WebGL Test</h1>
+    <p>This page tests if WebGL is properly supported in your browser.</p>
+    
+    <div id="webgl-status"></div>
+    <canvas id="webgl-canvas"></canvas>
+    
+    <h2>Debug Information</h2>
+    <pre id="debug-info"></pre>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const statusElement = document.getElementById('webgl-status');
+      const debugInfoElement = document.getElementById('debug-info');
+      const canvas = document.getElementById('webgl-canvas');
+      
+      const debugInfo = {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        webglSupport: false,
+        renderer: null,
+        vendor: null,
+        error: null
+      };
+
+      function updateStatus(success, message) {
+        statusElement.className = success ? 'status success' : 'status error';
+        statusElement.innerHTML = message;
+      }
+
+      try {
+        // Try to get WebGL context
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        
+        if (!gl) {
+          throw new Error('WebGL not supported');
+        }
+        
+        debugInfo.webglSupport = true;
+        
+        // Get WebGL info
+        const debugExt = gl.getExtension('WEBGL_debug_renderer_info');
+        if (debugExt) {
+          debugInfo.renderer = gl.getParameter(debugExt.UNMASKED_RENDERER_WEBGL);
+          debugInfo.vendor = gl.getParameter(debugExt.UNMASKED_VENDOR_WEBGL);
+        }
+        
+        // Draw a simple triangle
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        
+        // Vertex shader
+        const vsSource = `
+          attribute vec4 aVertexPosition;
+          attribute vec4 aVertexColor;
+          varying lowp vec4 vColor;
+          void main(void) {
+            gl_Position = aVertexPosition;
+            vColor = aVertexColor;
+          }
+        `;
+        
+        // Fragment shader
+        const fsSource = `
+          varying lowp vec4 vColor;
+          void main(void) {
+            gl_FragColor = vColor;
+          }
+        `;
+        
+        // Initialize shaders
+        function initShader(gl, type, source) {
+          const shader = gl.createShader(type);
+          gl.shaderSource(shader, source);
+          gl.compileShader(shader);
+          
+          if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            throw new Error('Shader compile error: ' + gl.getShaderInfoLog(shader));
+          }
+          
+          return shader;
+        }
+        
+        const vertexShader = initShader(gl, gl.VERTEX_SHADER, vsSource);
+        const fragmentShader = initShader(gl, gl.FRAGMENT_SHADER, fsSource);
+        
+        // Create the shader program
+        const shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+        
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+          throw new Error('Shader program linking error: ' + gl.getProgramInfoLog(shaderProgram));
+        }
+        
+        gl.useProgram(shaderProgram);
+        
+        // Vertex positions and colors for a colorful triangle
+        const positions = [
+          0.0, 0.5, 0.0,    // top
+          -0.5, -0.5, 0.0,  // bottom left
+          0.5, -0.5, 0.0    // bottom right
+        ];
+        
+        const colors = [
+          1.0, 0.0, 0.0, 1.0,    // red
+          0.0, 1.0, 0.0, 1.0,    // green
+          0.0, 0.0, 1.0, 1.0     // blue
+        ];
+        
+        // Create and bind position buffer
+        const positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+        
+        const aVertexPosition = gl.getAttribLocation(shaderProgram, 'aVertexPosition');
+        gl.vertexAttribPointer(aVertexPosition, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(aVertexPosition);
+        
+        // Create and bind color buffer
+        const colorBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+        
+        const aVertexColor = gl.getAttribLocation(shaderProgram, 'aVertexColor');
+        gl.vertexAttribPointer(aVertexColor, 4, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(aVertexColor);
+        
+        // Draw the triangle
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        
+        updateStatus(true, '<strong>WebGL is working!</strong> A colorful triangle should be visible below.');
+      } catch (error) {
+        debugInfo.error = error.message;
+        updateStatus(false, `<strong>WebGL Error:</strong> ${error.message}`);
+      }
+      
+      // Update debug info
+      debugInfoElement.textContent = JSON.stringify(debugInfo, null, 2);
+    });
+  </script>
+</body>
+</html> 

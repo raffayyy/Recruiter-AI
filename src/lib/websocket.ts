@@ -101,8 +101,8 @@ export class WebSocketClient {
         
         // Only change connection status if it was previously connected
         if (this.connectionStatus) {
-          this.connectionStatus = false;
-          this.onConnectionChange(false);
+        this.connectionStatus = false;
+        this.onConnectionChange(false);
         }
         
         this.connecting = false;

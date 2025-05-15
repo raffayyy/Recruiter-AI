@@ -43,7 +43,7 @@ export function VideoPanel({
           <p className="text-gray-400 text-sm">Camera preview</p>
         </div>
       )}
-      
+
       {/* "You" label */}
       <div className="absolute top-2 right-2 rounded-md bg-gray-800/80 px-2 py-1 text-xs text-white">
         You

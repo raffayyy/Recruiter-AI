@@ -50,12 +50,12 @@ export function useVideoStream() {
 
   // Setup stream with improved error handling
   const setupStream = useCallback(async () => {
-    try {
+      try {
       console.log('Requesting media devices...');
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
 
       // Check that we got both audio and video tracks
       const audioTracks = mediaStream.getAudioTracks();
@@ -84,7 +84,7 @@ export function useVideoStream() {
         console.warn('No video tracks in the media stream!');
       }
 
-      setStream(mediaStream);
+        setStream(mediaStream);
       
       // Update permission status after successful getUserMedia
       checkPermissions();
@@ -107,13 +107,13 @@ export function useVideoStream() {
       
       setError(`${errorMessage} (${err.name})`);
       console.error('Media stream error:', err);
-    }
+      }
   }, [checkPermissions]);
 
   useEffect(() => {
     // First check permissions, then setup stream
     checkPermissions().then(() => {
-      setupStream();
+    setupStream();
     });
 
     // Cleanup function
