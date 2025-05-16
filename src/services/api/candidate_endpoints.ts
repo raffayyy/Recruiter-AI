@@ -7,3 +7,11 @@ export const getJobsCandidates = () => {
 export const getResume = () => {
   return apiRequest(MethodMap.GET, `/candidate/resume`);
 };
+
+export const endInterview = (applicationId: string) =>{
+  return apiRequest(MethodMap.POST, `/interview/end/${applicationId}`)
+}
+
+export const getCandidateJobDetails = (jobId: string) =>{
+  return apiRequest(MethodMap.GET, `/candidate/jobs/${jobId}`)
+}

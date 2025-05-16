@@ -1,10 +1,21 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MoreVertical, Calendar } from 'lucide-react';
-import { Application } from '../../types/application';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { formatDate } from '../../lib/date';
+import { useAuth } from '../../contexts/AuthContext';
+
+interface Application {
+  application_id: number;
+  candidate_name?: string;
+  candidate_email?: string;
+  job_title?: string;
+  company_name?: string;
+  applied_at: string;
+  application_status: string;
+  suitability_score?: number;
+}
 
 interface ApplicationRowProps {
   application: Application;
@@ -12,6 +23,8 @@ interface ApplicationRowProps {
 
 export function ApplicationRow({ application }: ApplicationRowProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isRecruiter = user?.role === 'recruiter';
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -25,8 +38,12 @@ export function ApplicationRow({ application }: ApplicationRowProps) {
   };
 
   const handleReview = () => {
-    navigate(`/applications/${application.application_id}/feedback`);
+    if (isRecruiter) {
+      navigate(`/applications/${application.application_id}/feedback`);
+    }
   };
+
+  console.log("h",application);
 
   return (
     <tr className="group hover:bg-gray-50 dark:hover:bg-gray-800/50">
@@ -71,13 +88,15 @@ export function ApplicationRow({ application }: ApplicationRowProps) {
       </td>
       <td className="px-4 py-4">
         <div className="flex items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleReview}
-          >
-            Review
-          </Button>
+          {isRecruiter && application.application_status === 'Interview Completed' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleReview}
+            >
+              Review
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"

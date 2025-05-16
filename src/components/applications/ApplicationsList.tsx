@@ -14,8 +14,6 @@ export function ApplicationsList({
   isLoading,
   error,
 }: ApplicationsListProps) {
-  console.log("applications", applications);
-
   if (isLoading) {
     return <LoadingSpinner />;
   }
@@ -37,6 +35,8 @@ export function ApplicationsList({
       </div>
     );
   }
+
+  console.log("applications", applications);
 
   return (
     <div className="space-y-4">

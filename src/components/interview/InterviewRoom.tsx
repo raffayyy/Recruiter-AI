@@ -11,6 +11,7 @@ import { useTabProctoring } from "../../hooks/useTabProctoring";
 import api from "../../lib/api";
 import { TabProctoring } from "./TabProctoring";
 import { FaceViolation } from "../../hooks/useFaceDetection";
+import { endInterview } from "../../services/api/candidate_endpoints";
 // import { InterviewDebug } from "./InterviewDebug";
 
 // 15 minutes interview duration
@@ -89,10 +90,6 @@ export function InterviewRoom() {
   const [silenceTimer, setSilenceTimer] = useState<number | null>(null);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
-  const [isListening, setIsListening] = useState(false);
-  const silenceThreshold = 15; // Threshold for silence detection
-  const silenceTimeout = 2000; // Stop recording after 2 seconds of silence
-  const maxRecordingTime = 20000; // Maximum recording time (20 seconds)
   const recordingTimerRef = useRef<number | null>(null);
   
   // Add a function to report violations to the backend
@@ -183,6 +180,8 @@ export function InterviewRoom() {
         stream.getTracks().forEach((track) => track.stop());
       }
 
+      endInterview(id!);
+
       // Navigate to completion page
       navigate("/interview-complete", {
         state: {
@@ -196,25 +195,6 @@ export function InterviewRoom() {
 
   // Add this effect to initialize audio context and analyser for silence detection
   useEffect(() => {
-    // Disabled audio context setup since we're not using silence detection
-    // if (stream && isAutomaticMode) {
-    //   try {
-    //     const context = new AudioContext();
-    //     const analyserNode = context.createAnalyser();
-    //     analyserNode.fftSize = 256;
-    //     analyserNode.smoothingTimeConstant = 0.8;
-    //     
-    //     const source = context.createMediaStreamSource(stream);
-    //     source.connect(analyserNode);
-    //     // Don't connect to destination to avoid feedback
-    //     
-    //     setAudioContext(context);
-    //     setAnalyser(analyserNode);
-    //     console.log("Audio context and analyser initialized for silence detection");
-    //   } catch (err) {
-    //     console.error("Error setting up audio context:", err);
-    //   }
-    // }
     
     return () => {
       if (audioContext) {
@@ -227,50 +207,10 @@ export function InterviewRoom() {
     };
   }, [stream, isAutomaticMode]);
 
-  // Add this function for detecting silence
-  function detectSilence() {
-    // Disabled silence detection
-    // if (!analyser || !isRecording) return;
-    // 
-    // const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    // analyser.getByteFrequencyData(dataArray);
-    // 
-    // // Calculate average volume level
-    // const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-    // 
-    // if (average < silenceThreshold) {
-    //   // If silent and no timer is set, start the silence timer
-    //   if (!silenceTimer) {
-    //     console.log("Silence detected, starting silence timer");
-    //     const timer = setTimeout(() => {
-    //       console.log("Silence timer completed, stopping recording");
-    //       stopRecording();
-    //       setSilenceTimer(null);
-    //     }, silenceTimeout);
-    //     setSilenceTimer(timer);
-    //   }
-    // } else {
-    //   // If there's sound and a timer is set, clear it
-    //   if (silenceTimer) {
-    //     console.log("Sound detected, clearing silence timer");
-    //     clearTimeout(silenceTimer);
-    //     setSilenceTimer(null);
-    //   }
-    // }
-  }
 
   // Add this effect to run silence detection
   useEffect(() => {
     let animationFrame: number | undefined;
-    
-    // Disabled silence detection completely
-    // if (isRecording && isAutomaticMode && analyser) {
-    //   const checkSilence = () => {
-    //     detectSilence();
-    //     animationFrame = requestAnimationFrame(checkSilence);
-    //   };
-    //   animationFrame = requestAnimationFrame(checkSilence);
-    // }
     
     return () => {
       if (animationFrame !== undefined) {

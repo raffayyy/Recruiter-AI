@@ -2,8 +2,18 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Application } from '../../types/application';
 import { formatDate } from '../../lib/date';
+import { useAuth } from '../../contexts/AuthContext';
+
+interface Application {
+  id: string;
+  status: string;
+  appliedAt: string;
+  job: {
+    id?: string;
+    title: string;
+  };
+}
 
 interface CandidateApplicationsProps {
   applications: Application[];
@@ -11,6 +21,16 @@ interface CandidateApplicationsProps {
 
 export function CandidateApplications({ applications }: CandidateApplicationsProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isRecruiter = user?.role === 'recruiter';
+
+  const handleViewDetails = (application: Application) => {
+    if (isRecruiter) {
+      navigate(`/applications/${application.id}/feedback`);
+    } else {
+      navigate(`/jobs/${application.job.id}/view`);
+    }
+  };
 
   return (
     <Card>
@@ -49,7 +69,7 @@ export function CandidateApplications({ applications }: CandidateApplicationsPro
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate(`/applications/${application.id}/feedback`)}
+                    onClick={() => handleViewDetails(application)}
                   >
                     View Details
                   </Button>

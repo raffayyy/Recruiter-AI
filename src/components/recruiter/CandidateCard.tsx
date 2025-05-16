@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { User, MapPin, Briefcase, Calendar, BarChart } from "lucide-react";
 import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface ApplicationData {
   application_id: number;
@@ -16,7 +17,16 @@ interface ApplicationData {
 
 export function CandidateCard({ candidate }: any) {
   const navigate = useNavigate();
-  console.log("application", candidate);
+  const { user } = useAuth();
+  const isRecruiter = user?.role === 'recruiter';
+
+  const handleViewApplication = () => {
+    if (isRecruiter) {
+      navigate(`/applications/${candidate.application_id}/feedback`);
+    } else {
+      navigate(`/jobs/${candidate.job_id}/view`);
+    }
+  };
 
   return (
     <Card className="overflow-hidden">
@@ -58,17 +68,15 @@ export function CandidateCard({ candidate }: any) {
           </span>
         </div>
 
-        <div className="mt-4">
+        {candidate?.application_status === 'Interview Completed' && <div className="mt-4">
           <Button
             variant="outline"
             className="w-full"
-            onClick={() =>
-              navigate(`/applications/${candidate.application_id}/feedback`)
-            }
+            onClick={handleViewApplication}
           >
             View Application
           </Button>
-        </div>
+        </div>}
       </div>
     </Card>
   );

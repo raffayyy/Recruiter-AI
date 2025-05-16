@@ -4,6 +4,7 @@ import { Button } from "../ui/Button";
 import { formatDate } from "../../lib/date";
 import { useAuth } from "../../contexts/AuthContext";
 import { formatText } from "../../utils/formatText";
+import { useNavigate } from "react-router-dom";
 
 interface JobCardProps {
   job: {
@@ -23,6 +24,7 @@ interface JobCardProps {
 
 export function JobCard({ job, onApply, onEdit }: JobCardProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isRecruiter = user?.role === "recruiter";
   const [currentJob, setCurrentJob] = useState(job);
 
@@ -34,8 +36,17 @@ export function JobCard({ job, onApply, onEdit }: JobCardProps) {
     return "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200";
   };
 
+  const handleCardClick = () => {
+    if (!isRecruiter && currentJob.job_id) {
+      navigate(`/jobs/${currentJob.job_id}/view`);
+    }
+  };
+
   return (
-    <div className="overflow-hidden rounded-lg bg-white shadow-sm transition-all hover:shadow-md dark:bg-gray-800 dark:border dark:border-gray-700">
+    <div 
+      className={`overflow-hidden rounded-lg bg-white shadow-sm transition-all hover:shadow-md dark:bg-gray-800 dark:border dark:border-gray-700 ${!isRecruiter ? 'cursor-pointer' : ''}`}
+      onClick={handleCardClick}
+    >
       <div className="p-6">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">
@@ -78,7 +89,7 @@ export function JobCard({ job, onApply, onEdit }: JobCardProps) {
             : currentJob.short_description}
         </p>
 
-        <div className="mt-4">
+        <div className="mt-4" onClick={(e) => e.stopPropagation()}>
           {isRecruiter ? (
             <Button
               variant="outline"
