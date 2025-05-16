@@ -10,10 +10,11 @@ import { useWebSocket } from "../../hooks/useWebSocket";
 import { useTabProctoring } from "../../hooks/useTabProctoring";
 import api from "../../lib/api";
 import { TabProctoring } from "./TabProctoring";
+import { FaceViolation } from "../../hooks/useFaceDetection";
 // import { InterviewDebug } from "./InterviewDebug";
 
 // 15 minutes interview duration
-const INTERVIEW_DURATION = 15 * 60; // seconds
+const INTERVIEW_DURATION = 10 * 60; // seconds
 
 export function InterviewRoom() {
   const navigate = useNavigate();
@@ -32,6 +33,10 @@ export function InterviewRoom() {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const lastProcessedMessageRef = useRef<number>(-1);
+  
+  // Add new state for proctoring violations
+  const [proctoringViolations, setProctoringViolations] = useState<FaceViolation[]>([]);
+  const maxFaceViolations = 5000; // Maximum allowed face violations (changed from 10 to 5)
 
   // Tab proctoring state
   const { tabSwitchCount, showTabWarning } = useTabProctoring({
@@ -77,6 +82,27 @@ export function InterviewRoom() {
   const silenceTimeout = 2000; // Stop recording after 2 seconds of silence
   const maxRecordingTime = 20000; // Maximum recording time (20 seconds)
   const recordingTimerRef = useRef<number | null>(null);
+  
+  // Handler for face proctoring violations
+  const handleProctoringViolation = useCallback((violation: FaceViolation) => {
+    console.log("Proctoring violation detected:", violation);
+    
+    // Add to violations list (keeping only the last 20 violations)
+    setProctoringViolations(prev => {
+      const updated = [...prev, violation];
+      
+      // Simplified logic: just check if total violations exceed the maximum
+      if (updated.length >= maxFaceViolations) {
+        console.log(`Maximum face violations reached (${maxFaceViolations}), ending interview`);
+        // Use setTimeout to avoid state update during render
+        setTimeout(() => {
+          handleEndInterview(true, `Face proctoring violation: ${violation.message}`);
+        }, 0);
+      }
+      
+      return updated.slice(-20); // Keep only the last 20 violations
+    });
+  }, [maxFaceViolations]);
   
   // Expand handleEndInterview to include a reason parameter
   const handleEndInterview = (isAutoSubmit = false, reason = "") => {
@@ -839,103 +865,113 @@ export function InterviewRoom() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-950">
-      {/* Status bar with timer and connection status */}
-      <div className="flex items-center justify-between bg-gray-900 p-2 px-4 border-b border-gray-800">
-        {/* Connection status indicator */}
-        <div className="flex items-center gap-2">
-          <div
-            className={`h-2 w-2 rounded-full ${
-              isConnected ? "bg-green-500 animate-pulse" : "bg-red-500"
-            }`}
-          />
-          <span className="text-sm text-gray-300">
-            {isConnected ? "Connected" : "Connecting..."}
-          </span>
-        </div>
-        
-        {/* Tab Proctoring */}
-        <TabProctoring 
-          maxViolations={3}
-          onMaxViolationsReached={() => handleEndInterview(true, "Tab switching violation")}
-        />
-        
-        {/* Timer display with improved styling */}
-        <div
-          className={`flex items-center gap-2 rounded-full px-3 py-1
-            ${timeRemaining < 120 
-              ? "bg-red-600 animate-pulse" 
-              : timeRemaining < 300 
-                ? "bg-yellow-600" 
-                : "bg-blue-600"
-            } text-white text-sm font-medium`}
-        >
-          <Clock className="h-3.5 w-3.5" />
-          <span>{formatTime(timeRemaining)}</span>
-        </div>
-      </div>
-
-      {/* Main interview area */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Virtual Interviewer - Takes most of the screen */}
-        <div className="flex-1 p-4 overflow-auto">
-          <VirtualInterviewer
-            isAnswering={isRecording}
-            question={serverQuestion}
-          />
-        </div>
-        
-        {/* Side panel with camera and tips */}
-        <div className="w-full md:w-80 p-4 bg-gray-900 border-t md:border-t-0 md:border-l border-gray-800 flex flex-col overflow-auto">
-          {/* Self View */}
-          <div className="mb-4">
-            <h3 className="text-sm font-medium text-gray-400 mb-2">Camera Preview</h3>
-            <VideoPanel
-              stream={stream}
-              isMuted={true}
-              isVideoOn={true}
-            />
-          </div>
+    <div className="flex flex-col h-screen overflow-hidden bg-gray-900 text-white">
+      {/* Header - reduced padding */}
+      <header className="px-4 py-3 border-b border-gray-800">
+        <div className="container mx-auto flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <h1 className="text-2xl font-bold">Recruiter.ai Interview</h1>
           
-          {/* Interview Tips */}
-          <div className="flex-1">
-            <ProctoringWarnings />
+          {/* Timer display */}
+          <div className="flex items-center gap-3">
+            <div 
+              className={`flex items-center gap-2 ${showTimeWarning ? 'text-red-400' : 'text-blue-400'}`}
+            >
+              <Clock className="h-5 w-5" />
+              <span className="text-lg">
+                {formatTime(timeRemaining)}
+              </span>
+            </div>
+            
+            {showTabWarning && (
+              <div className="flex items-center gap-2 text-yellow-400">
+                <AlertTriangle className="h-5 w-5" />
+                <span>Tab switching detected</span>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      </header>
       
-      {/* Time warning */}
-      {showTimeWarning && (
-        <div className="fixed top-16 right-4 z-50 animate-pulse rounded-lg bg-red-600 p-3 text-white shadow-lg">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5" />
-            <span className="font-medium">2 minutes remaining!</span>
+      {/* Main content area - with reduced padding */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="container mx-auto flex-1 py-3 px-4 flex flex-col">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 flex-1">
+            {/* Video interview section */}
+            <div className="col-span-2 flex flex-col">
+              {/* Video feeds in grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3 flex-auto">
+                <div className="flex flex-col">
+                  <h2 className="text-lg font-medium mb-1">You</h2>
+                  <div className="flex-1 min-h-0"> {/* Force contained height */}
+                    <VideoPanel 
+                      stream={stream} 
+                      isMuted={isMuted} 
+                      isVideoOn={isVideoOn}
+                      onViolation={handleProctoringViolation}
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex flex-col">
+                  <h2 className="text-lg font-medium mb-1">Interviewer</h2>
+                  <div className="flex-1 min-h-0"> {/* Force contained height */}
+                    <VirtualInterviewer 
+                      isAnswering={isRecording}
+                      serverQuestion={serverQuestion}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Interview Controls - Now with fixed height */}
+              <div className="bg-gray-800 p-3 rounded-lg">
+                <h2 className="text-lg font-medium mb-2">Interview Controls</h2>
+                <InterviewControls 
+                  isMuted={isMuted}
+                  isVideoOn={isVideoOn}
+                  isRecording={isRecording}
+                  onToggleAudio={() => setIsMuted(!isMuted)}
+                  onToggleVideo={() => setIsVideoOn(!isVideoOn)}
+                  onToggleRecording={toggleRecording}
+                  onHoldToRecord={handleHoldToRecord}
+                  onEndInterview={() => handleEndInterview()}
+                  isAudioPlaying={isPlayingAudio}
+                />
+              </div>
+            </div>
+            
+            {/* Interview guidance section */}
+            <div className="overflow-auto">
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-medium mb-1">Interview Tips</h2>
+                  <ProctoringWarnings violations={proctoringViolations} />
+                </div>
+                
+                <div>
+                  <h2 className="text-lg font-medium mb-1">Tab Activity Monitoring</h2>
+                  <TabProctoring 
+                    maxViolations={3}
+                    onMaxViolationsReached={() => handleEndInterview(true, "Tab switching violation")}
+                  />
+                </div>
+                
+                {/* Debugger section - hidden by default */}
+                {showDebugger && (
+                  <div>
+                    <h2 className="text-lg font-medium mb-1">Debug Info</h2>
+                    {/* <InterviewDebug
+                      isConnected={isConnected}
+                      messages={messages}
+                      isRecording={isRecording}
+                      isPlayingAudio={isPlayingAudio}
+                    /> */}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      )}
-      
-      {/* Tab switch warning */}
-      {showTabWarning && (
-        <div className="fixed top-16 left-4 z-50 animate-pulse rounded-lg bg-red-600 p-3 text-white shadow-lg">
-          <div className="flex items-center gap-2">
-            <AlertOctagon className="h-5 w-5" />
-            <span className="font-medium">
-              Tab switching detected! ({tabSwitchCount}/3)
-              {tabSwitchCount >= 2 && " - Final warning!"}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Controls at the bottom */}
-      <div className="w-full">
-        <InterviewControls
-          isMuted={isMuted}
-          onEndInterview={() => handleEndInterview()}
-          isRecording={isRecording}
-          onHoldToRecord={handleHoldToRecord}
-          isAudioPlaying={isPlayingAudio}
-        />
       </div>
     </div>
   );
