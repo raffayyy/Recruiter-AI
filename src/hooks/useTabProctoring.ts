@@ -5,13 +5,15 @@ interface UseTabProctoringProps {
   minTimeAwayMs?: number;
   warningDurationMs?: number;
   onMaxViolationsReached?: () => void;
+  onViolation?: () => void;
 }
 
 export function useTabProctoring({
   maxViolations = 3,
   minTimeAwayMs = 2000,
   warningDurationMs = 5000,
-  onMaxViolationsReached
+  onMaxViolationsReached,
+  onViolation
 }: UseTabProctoringProps = {}) {
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [showTabWarning, setShowTabWarning] = useState(false);
@@ -48,6 +50,11 @@ export function useTabProctoring({
           // Show warning
           setShowTabWarning(true);
           
+          // Call onViolation callback if provided
+          if (onViolation) {
+            onViolation();
+          }
+          
           // Clear any existing timeout
           if (tabWarningTimeoutRef.current) {
             clearTimeout(tabWarningTimeoutRef.current);
@@ -78,7 +85,7 @@ export function useTabProctoring({
         clearTimeout(tabWarningTimeoutRef.current);
       }
     };
-  }, [tabSwitchCount, maxViolations, minTimeAwayMs, warningDurationMs, onMaxViolationsReached]);
+  }, [tabSwitchCount, maxViolations, minTimeAwayMs, warningDurationMs, onMaxViolationsReached, onViolation]);
 
   return {
     tabSwitchCount,

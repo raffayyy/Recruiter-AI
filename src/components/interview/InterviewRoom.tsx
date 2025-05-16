@@ -45,8 +45,20 @@ export function InterviewRoom() {
       // End interview on 3rd violation
       console.log("Maximum tab switches reached, ending interview");
       handleEndInterview(true, "Tab switching violation");
+    },
+    onViolation: () => {
+      // Report tab switch violation to backend
+      if (isConnected) {
+        sendMessage({
+          type: "violation",
+          violation: "tab_switched",
+          message: "User switched to another tab/window"
+        });
+      }
     }
   });
+  
+    // Extract values already handled by destructuring above
 
   // Timer state
   const [timeRemaining, setTimeRemaining] = useState(INTERVIEW_DURATION);
@@ -83,9 +95,59 @@ export function InterviewRoom() {
   const maxRecordingTime = 20000; // Maximum recording time (20 seconds)
   const recordingTimerRef = useRef<number | null>(null);
   
+  // Add a function to report violations to the backend
+  const reportViolation = useCallback((type: string, message: string) => {
+    if (isConnected) {
+      sendMessage({
+        type: "violation",
+        violation: type,
+        message: message
+      });
+      console.log(`Violation reported to backend: ${type} - ${message}`);
+    }
+  }, [isConnected, sendMessage]);
+  
+  // Improve the stopRecording function to ensure proper cleanup
+  const stopRecording = useCallback(() => {
+    if (!mediaRecorder) {
+      console.warn("No active media recorder");
+      return;
+    }
+
+    try {
+      console.log("Stopping recording...");
+      // Use try-catch for each step to ensure robustness
+      try {
+        mediaRecorder.stop();
+        console.log("MediaRecorder stopped successfully");
+      } catch (err) {
+        console.error("Error stopping mediaRecorder:", err);
+      }
+      
+      // Reset state immediately to prevent race conditions
+      setIsRecording(false);
+      setMediaRecorder(null);
+    } catch (err) {
+      console.error("Error in stopRecording:", err);
+      // Ensure states are reset even if there's an error
+      setIsRecording(false);
+      setMediaRecorder(null);
+    }
+  }, [mediaRecorder]);
+  
   // Handler for face proctoring violations
   const handleProctoringViolation = useCallback((violation: FaceViolation) => {
     console.log("Proctoring violation detected:", violation);
+    
+    // Report face violation to backend
+    if (isConnected) {
+      sendMessage({
+        type: "violation",
+        violation: "face_violation",
+        message: violation.message
+      });
+      console.log("Face violation reported to backend");
+    }
     
     // Add to violations list (keeping only the last 20 violations)
     setProctoringViolations(prev => {
@@ -102,10 +164,10 @@ export function InterviewRoom() {
       
       return updated.slice(-20); // Keep only the last 20 violations
     });
-  }, [maxFaceViolations]);
+  }, [maxFaceViolations, isConnected, sendMessage]);
   
   // Expand handleEndInterview to include a reason parameter
-  const handleEndInterview = (isAutoSubmit = false, reason = "") => {
+  const handleEndInterview = useCallback((isAutoSubmit = false, reason = "") => {
     const confirmMessage = isAutoSubmit && reason 
       ? `Interview ended: ${reason}`
       : "Are you sure you want to end the interview?";
@@ -130,7 +192,7 @@ export function InterviewRoom() {
         },
       });
     }
-  };
+  }, [id, isRecording, mediaRecorder, navigate, stream, stopRecording]);
 
   // Add this effect to initialize audio context and analyser for silence detection
   useEffect(() => {
@@ -430,34 +492,6 @@ export function InterviewRoom() {
       }
     };
   }, [silenceTimer]);
-
-  // Improve the stopRecording function to ensure proper cleanup
-  const stopRecording = useCallback(() => {
-    if (!mediaRecorder) {
-      console.warn("No active media recorder");
-      return;
-    }
-
-    try {
-      console.log("Stopping recording...");
-      // Use try-catch for each step to ensure robustness
-      try {
-        mediaRecorder.stop();
-        console.log("MediaRecorder stopped successfully");
-      } catch (err) {
-        console.error("Error stopping mediaRecorder:", err);
-      }
-      
-      // Reset state immediately to prevent race conditions
-      setIsRecording(false);
-      setMediaRecorder(null);
-    } catch (err) {
-      console.error("Error in stopRecording:", err);
-      // Ensure states are reset even if there's an error
-      setIsRecording(false);
-      setMediaRecorder(null);
-    }
-  }, [mediaRecorder]);
 
   // Update the handleHoldToRecord function to ensure it works consistently
   const handleHoldToRecord = useCallback((isHolding: boolean) => {
