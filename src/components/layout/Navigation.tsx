@@ -1,9 +1,19 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { BriefcaseIcon, UserCircle, Settings, Sun, Moon, ClipboardList, Users, Menu, X } from 'lucide-react';
-import { useTheme } from '../../contexts/ThemeContext';
-import { useAuth } from '../../contexts/AuthContext';
-import { Button } from '../ui/Button';
+import React, { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import {
+  BriefcaseIcon,
+  UserCircle,
+  Settings,
+  Sun,
+  Moon,
+  ClipboardList,
+  Users,
+  Menu,
+  X,
+} from "lucide-react";
+import { useTheme } from "../../contexts/ThemeContext";
+import { useAuth } from "../../contexts/AuthContext";
+import { Button } from "../ui/Button";
 
 export function Navigation() {
   const location = useLocation();
@@ -13,28 +23,30 @@ export function Navigation() {
 
   const getNavItems = () => {
     if (!isAuthenticated) {
-      return [{ path: '/', icon: BriefcaseIcon, label: 'Home' }];
+      return [{ path: "/", icon: BriefcaseIcon, label: "Home" }];
     }
 
     const items = [
-      { path: '/dashboard', icon: BriefcaseIcon, label: 'Dashboard' },
+      { path: "/dashboard", icon: BriefcaseIcon, label: "Dashboard" },
     ];
 
-    if (user?.role === 'recruiter') {
+    if (user?.role === "recruiter") {
       items.push(
-        { path: '/applications', icon: ClipboardList, label: 'Applications' },
-        { path: '/candidates', icon: Users, label: 'Candidates' }
+        { path: "/applications", icon: ClipboardList, label: "Applications" },
+        { path: "/candidates", icon: Users, label: "Candidates" }
       );
     } else {
       items.push(
-        { path: '/applications', icon: ClipboardList, label: 'My Applications' }
+        {
+          path: "/applications",
+          icon: ClipboardList,
+          label: "My Applications",
+        },
+        { path: "/profile", icon: UserCircle, label: "Profile" }
       );
     }
 
-    items.push(
-      { path: '/profile', icon: UserCircle, label: 'Profile' },
-      { path: '/settings', icon: Settings, label: 'Settings' }
-    );
+    items.push({ path: "/settings", icon: Settings, label: "Settings" });
 
     return items;
   };
@@ -75,15 +87,15 @@ export function Navigation() {
               to={item.path}
               className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
                 location.pathname === item.path
-                  ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/50'
-                  : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800'
+                  ? "bg-blue-50 text-blue-600 dark:bg-blue-900/50"
+                  : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
               }`}
             >
               <item.icon className="h-5 w-5" />
               <span>{item.label}</span>
             </Link>
           ))}
-          
+
           {!isAuthenticated && (
             <div className="flex items-center gap-2">
               <Link to="/login">
@@ -92,20 +104,18 @@ export function Navigation() {
                 </Button>
               </Link>
               <Link to="/register">
-                <Button size="sm">
-                  Sign Up
-                </Button>
+                <Button size="sm">Sign Up</Button>
               </Link>
             </div>
           )}
-          
+
           <Button
             variant="ghost"
             size="sm"
             onClick={toggleTheme}
             className="ml-4"
           >
-            {theme === 'dark' ? (
+            {theme === "dark" ? (
               <Sun className="h-5 w-5" />
             ) : (
               <Moon className="h-5 w-5" />
@@ -124,8 +134,8 @@ export function Navigation() {
                 to={item.path}
                 className={`block rounded-md px-3 py-2 text-base font-medium ${
                   location.pathname === item.path
-                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/50'
-                    : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800'
+                    ? "bg-blue-50 text-blue-600 dark:bg-blue-900/50"
+                    : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                 }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
@@ -135,7 +145,7 @@ export function Navigation() {
                 </div>
               </Link>
             ))}
-            
+
             {!isAuthenticated && (
               <div className="mt-3 flex flex-col space-y-2 px-3">
                 <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
@@ -144,13 +154,11 @@ export function Navigation() {
                   </Button>
                 </Link>
                 <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full">
-                    Sign Up
-                  </Button>
+                  <Button className="w-full">Sign Up</Button>
                 </Link>
               </div>
             )}
-            
+
             <div className="mt-3 px-3">
               <Button
                 variant="ghost"
@@ -161,7 +169,7 @@ export function Navigation() {
                 }}
               >
                 <div className="flex items-center gap-2">
-                  {theme === 'dark' ? (
+                  {theme === "dark" ? (
                     <>
                       <Sun className="h-5 w-5" />
                       <span>Light Mode</span>

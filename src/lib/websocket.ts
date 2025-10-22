@@ -11,6 +11,7 @@ export class WebSocketClient {
   private reconnectTimeout = 1000;
   private connectionStatus = false;
   private authToken: string;
+  private connecting = false;
 
   constructor(
     private url: string,
@@ -24,7 +25,31 @@ export class WebSocketClient {
   }
 
   connect() {
+    // Don't try to reconnect if we already have an active connection or are in the process of connecting
+    if (this.connecting) {
+      console.log('WebSocket connection already in progress, skipping reconnect');
+      return;
+    }
+    
+    if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
+      console.log('WebSocket connection already active, skipping reconnect');
+      return;
+    }
+    
+    // Set connecting flag to prevent multiple connection attempts
+    this.connecting = true;
+    
     try {
+      // Close any existing connection
+      if (this.ws) {
+        try {
+          this.ws.close();
+        } catch (error) {
+          console.error('Error closing existing WebSocket:', error);
+        }
+        this.ws = null;
+      }
+      
       // Special handling for '/interview/ws/' path to ensure proper URL formatting
       let urlWithToken = this.url;
       
@@ -54,6 +79,7 @@ export class WebSocketClient {
         console.log('WebSocket connection established');
         this.reconnectAttempts = 0;
         this.connectionStatus = true;
+        this.connecting = false;
         this.onConnectionChange(true);
       };
 
@@ -72,8 +98,14 @@ export class WebSocketClient {
 
       this.ws.onclose = (event) => {
         console.log(`WebSocket closed with code ${event.code}: ${event.reason}`);
-        this.connectionStatus = false;
-        this.onConnectionChange(false);
+        
+        // Only change connection status if it was previously connected
+        if (this.connectionStatus) {
+          this.connectionStatus = false;
+          this.onConnectionChange(false);
+        }
+        
+        this.connecting = false;
         
         // Only attempt reconnection for unexpected closures
         // Don't attempt to reconnect if the connection was closed cleanly
@@ -84,10 +116,13 @@ export class WebSocketClient {
 
       this.ws.onerror = (error) => {
         console.error('WebSocket error:', error);
+        // Reset connecting flag on error
+        this.connecting = false;
         // Don't close here, let the onclose handler decide what to do
       };
     } catch (error) {
       console.error('Failed to establish WebSocket connection:', error);
+      this.connecting = false;
       this.reconnect();
     }
   }
@@ -103,7 +138,7 @@ export class WebSocketClient {
       console.log(`Will attempt to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
       
       setTimeout(() => {
-        if (!this.connectionStatus) {
+        if (!this.connectionStatus && !this.connecting) {
           this.connect();
         }
       }, delay);
@@ -130,16 +165,47 @@ export class WebSocketClient {
       try {
         // Format the data to match the backend expectations
         // For interview response, ensure we use the right format
+        let messageToSend = {...data}; // Create a copy to avoid modifying the original
+        
         if (data.type === 'response' && data.audio_data) {
-          data = {
+          console.log('Formatting audio response for backend');
+          
+          // Check if audio_data has a reasonable length
+          const audioDataStr = String(data.audio_data);
+          console.log(`Audio data length: ${audioDataStr.length} bytes, starts with: ${audioDataStr.substring(0, 30)}...`);
+          
+          // Format according to what the backend expects
+          messageToSend = {
             type: 'response',
             response: data.audio_data
           };
+          
+          // Additional logging - detect if this is a data URL format
+          if (typeof data.audio_data === 'string' && data.audio_data.includes('data:')) {
+            console.log('Detected data URL format in audio_data');
+          }
+          
+          console.log('Formatted response message structure:', JSON.stringify(messageToSend, (key, value) => {
+            if (key === 'response' && typeof value === 'string' && value.length > 50) {
+              return value.substring(0, 50) + '... [truncated]';
+            }
+            return value;
+          }));
         }
         
-        const messageStr = JSON.stringify(data);
-        console.log('Sending WebSocket message:', messageStr.substring(0, 100) + (messageStr.length > 100 ? '...' : ''));
+        const messageStr = JSON.stringify(messageToSend);
+        const logSummary = messageStr.substring(0, 100) + (messageStr.length > 100 ? '...' : '');
+        console.log(`Sending WebSocket message (${messageStr.length} bytes):`, logSummary);
+        
+        // Before sending, verify websocket is still open
+        if (this.ws?.readyState !== WebSocket.OPEN) {
+          console.error('WebSocket state changed before sending, current state:', 
+            this.ws ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][this.ws.readyState] : 'null');
+          return false;
+        }
+        
         this.ws.send(messageStr);
+        console.log('WebSocket message sent successfully');
         return true;
       } catch (error) {
         console.error('Error sending WebSocket message:', error);
@@ -148,7 +214,10 @@ export class WebSocketClient {
     } else {
       console.warn('Cannot send message: WebSocket is not open', {
         readyState: this.ws?.readyState,
-        data
+        readyStateText: this.ws ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][this.ws.readyState] : 'null',
+        connectionStatus: this.connectionStatus,
+        messageType: data.type,
+        hasAudioData: data.type === 'response' && !!data.audio_data
       });
       return false;
     }

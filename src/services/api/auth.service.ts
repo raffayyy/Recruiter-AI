@@ -4,7 +4,7 @@ import type { AuthResponse } from "../../types/auth";
 import type { CandidateFormData } from "../../types/candidate";
 import type { RecruiterFormData } from "../../types/recruiter";
 
-const API_URL = "http://127.0.0.1:8000/auth";
+const API_URL = "http://localhost:8000/auth";
 
 // Token utilities
 const TOKEN_KEY = "access_token";

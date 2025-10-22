@@ -1,18 +1,30 @@
-import React from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
-import { ApplicationDetails } from '../../components/applications/ApplicationDetails';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
-import { useApplicationDetails } from '../../hooks/useApplicationDetails';
+import { JobDetailsForCandidate } from '../../components/jobs/JobDetailsForCandidate';
+import { useAuth } from '../../contexts/AuthContext';
+import { useJobDetailsByApplication } from '../../hooks/useJobDetailsByApplication';
 
 export default function ApplicationDetailsPage() {
   const { applicationId } = useParams<{ applicationId: string }>();
-  const { application, isLoading, error } = useApplicationDetails(applicationId);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { jobDetails, isLoading, error } = useJobDetailsByApplication(applicationId);
+
+  // Redirect recruiters to feedback page
+  useEffect(() => {
+    if (user?.role === 'recruiter') {
+      navigate(`/applications/${applicationId}/feedback`);
+    }
+  }, [applicationId, navigate, user?.role]);
 
   if (isLoading) {
     return (
       <DashboardLayout>
-        <LoadingSpinner />
+        <div className="flex min-h-screen items-center justify-center">
+          <LoadingSpinner />
+        </div>
       </DashboardLayout>
     );
   }
@@ -27,17 +39,17 @@ export default function ApplicationDetailsPage() {
     );
   }
 
-  if (!application) {
+  if (!jobDetails) {
     return (
       <DashboardLayout>
-        <div className="text-center">Application not found</div>
+        <div className="text-center">Job details not found</div>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout>
-      <ApplicationDetails application={application} />
+      <JobDetailsForCandidate job={jobDetails} />
     </DashboardLayout>
   );
 }

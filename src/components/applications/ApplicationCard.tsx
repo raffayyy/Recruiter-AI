@@ -48,15 +48,7 @@ export function ApplicationCard({
         return "default";
     }
   };
-
-  const handleViewDetails = () => {
-    if (isRecruiter) {
-      navigate(`/jobs/${application?.jobId}/details`);
-    } else {
-      navigate(`/applications/${application?.application_id}/details`);
-    }
-  };
-
+  console.log("ApplicationCard", application);
   return (
     <Card variant="hover" className="transition-all hover:border-blue-500/50">
       <div className="p-6">
@@ -88,17 +80,6 @@ export function ApplicationCard({
               <span>{applicantsCount} Applicants</span>
             </div>
           )}
-        </div>
-
-        <div className="mt-4">
-          <Button
-            variant="outline"
-            onClick={handleViewDetails}
-            className="group w-full gap-2"
-          >
-            {isRecruiter ? "View All Applications" : "View Details"}
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Button>
         </div>
       </div>
     </Card>

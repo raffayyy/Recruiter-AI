@@ -7,3 +7,7 @@ export const getJobsRecruiter = () => {
 export const getRecruiterDashboardApplications = () => {
   return apiRequest(MethodMap.GET, `/recruiter/all-applications`);
 }
+
+export const getApplicationFeedback = (applicationId: string) => {
+  return apiRequest(MethodMap.GET, `/recruiter/evaluations/${applicationId}`);
+}

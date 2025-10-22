@@ -4,6 +4,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { formatDate } from '../../utils/formatDate';
 import { formatText } from '../../utils/formatText';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Applicant {
   application_id: number;
@@ -21,6 +22,8 @@ interface ApplicantsListProps {
 
 export function ApplicantsList({ applicants }: ApplicantsListProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isRecruiter = user?.role === 'recruiter';
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -70,12 +73,14 @@ export function ApplicantsList({ applicants }: ApplicantsListProps) {
                 <span className={`rounded-full px-3 py-1 text-sm font-medium ${getStatusColor(applicant.status)}`}>
                   {applicant.status}
                 </span>
-                <Button
-                  variant="outline"
-                  onClick={() => navigate(`/applications/${applicant.application_id}/feedback`)}
-                >
-                  Review
-                </Button>
+                {isRecruiter && applicant.status === 'Interview Completed' && (
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate(`/applications/${applicant.application_id}/feedback`)}
+                  >
+                    Review
+                  </Button>
+                )}
               </div>
             </div>
           ))}

@@ -13,7 +13,7 @@ export function useFetchApplications() {
       setIsLoading(true);
       try {
         const response = await fetch(
-          "http://127.0.0.1:8000/recruiter/all-applications",
+          "http://localhost:8000/recruiter/all-applications",
           {
             headers: {
               Authorization: `Bearer ${token}`,

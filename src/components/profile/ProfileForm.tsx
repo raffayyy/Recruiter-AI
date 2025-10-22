@@ -107,7 +107,7 @@ export function ProfileForm({ user }: { user: User }) {
       formData.append("file", file);
 
       await axios.post<{ url: string }>(
-        "http://127.0.0.1:8000/candidate/upload-resume",
+        "http://localhost:8000/candidate/upload-resume",
         formData,
         {
           headers: {
@@ -122,7 +122,7 @@ export function ProfileForm({ user }: { user: User }) {
 
       // Fetch the updated resume details
       const response = await axios.get(
-        "http://127.0.0.1:8000/candidate/resume",
+        "http://localhost:8000/candidate/resume",
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,

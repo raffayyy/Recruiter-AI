@@ -12,12 +12,12 @@ import Register from "../pages/auth/Register";
 import CandidateDashboard from "../pages/dashboard/CandidateDashboard";
 import RecruiterDashboard from "../pages/dashboard/RecruiterDashboard";
 import ApplicationsPage from "../pages/applications/ApplicationsPage";
-import ApplicationDetailsPage from "../pages/applications/ApplicationDetailsPage";
 import InterviewPage from "../pages/interview/InterviewPage";
 import ProfilePage from "../pages/profile/ProfilePage";
 import SettingsPage from "../pages/settings/SettingsPage";
 import FeedbackPage from "../pages/feedback/FeedbackPage";
 import JobDetailsPage from "../pages/jobs/JobDetailsPage";
+import CandidateJobDetailsPage from "../pages/jobs/CandidateJobDetailsPage";
 import EditJobPage from "../pages/jobs/EditJobPage";
 import CreateJobPage from "../pages/jobs/CreateJobPage";
 import CandidatesPage from "../pages/recruiter/CandidatesPage";
@@ -56,18 +56,9 @@ export function AppRoutes() {
           />
 
           <Route
-            path="/applications/:applicationId/details"
-            element={
-              <PrivateRoute>
-                <ApplicationDetailsPage />
-              </PrivateRoute>
-            }
-          />
-
-          <Route
             path="/applications/:applicationId/feedback"
             element={
-              <PrivateRoute>
+              <PrivateRoute recruiterOnly={true}>
                 <FeedbackPage />
               </PrivateRoute>
             }
@@ -76,7 +67,7 @@ export function AppRoutes() {
           <Route
             path="/jobs/:jobId/details"
             element={
-              <PrivateRoute>
+              <PrivateRoute recruiterOnly={true}>
                 <JobDetailsPage />
               </PrivateRoute>
             }
@@ -85,7 +76,7 @@ export function AppRoutes() {
           <Route
             path="/jobs/:jobId/edit"
             element={
-              <PrivateRoute>
+              <PrivateRoute recruiterOnly={true}>
                 <EditJobPage />
               </PrivateRoute>
             }
@@ -94,8 +85,17 @@ export function AppRoutes() {
           <Route
             path="/jobs/create"
             element={
-              <PrivateRoute>
+              <PrivateRoute recruiterOnly={true}>
                 <CreateJobPage />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/jobs/:jobId/view"
+            element={
+              <PrivateRoute>
+                <CandidateJobDetailsPage />
               </PrivateRoute>
             }
           />
@@ -103,7 +103,7 @@ export function AppRoutes() {
           <Route
             path="/candidates"
             element={
-              <PrivateRoute>
+              <PrivateRoute recruiterOnly={true}>
                 <CandidatesPage />
               </PrivateRoute>
             }
