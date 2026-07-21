@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { Job } from "../../types/job";
 import { ApplicationForm } from "./ApplicationForm";
 import { ApplicationFormData } from "../../types/application";
+import { formatText } from "../../utils/formatText";
 
 interface ApplicationModalProps {
   job: Job;
@@ -32,7 +33,7 @@ export function ApplicationModal({
 
         <div className="mb-6">
           <p className="text-sm text-gray-600">
-            {job?.company_name} • {job?.location}
+            {job?.company_name} • {formatText(job?.location)}
           </p>
         </div>
 

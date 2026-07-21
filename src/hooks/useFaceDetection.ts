@@ -16,7 +16,7 @@ type UseFaceDetectionOptions = {
   violationDisplayDuration?: number;
 };
 
-const DEFAULT_DETECTION_INTERVAL = 1000; // 1 second
+const DEFAULT_DETECTION_INTERVAL = 2000; // 2 seconds (lighter CPU load)
 const DEFAULT_VIOLATION_TIMEOUT = 2000; // 2 seconds
 const DEFAULT_VIOLATION_DISPLAY_DURATION = 3000; // Show for 3 seconds after resolving
 

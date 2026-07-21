@@ -3,8 +3,9 @@ import type { LoginForm } from "../../schemas/auth";
 import type { AuthResponse } from "../../types/auth";
 import type { CandidateFormData } from "../../types/candidate";
 import type { RecruiterFormData } from "../../types/recruiter";
+import { API_URL as API_BASE_URL } from "../../config";
 
-const API_URL = "http://localhost:8000/auth";
+const API_URL = `${API_BASE_URL}/auth`;
 
 // Token utilities
 const TOKEN_KEY = "access_token";
@@ -74,8 +75,13 @@ export const authService = {
 
   async getProfile(): Promise<AuthResponse["user"]> {
     try {
-      const response = await api.get<AuthResponse["user"]>("/profile");
-      return response.data;
+      // Backend exposes role-specific profile routes and wraps the payload as
+      // { user: ... }. Pick the route from the stored role.
+      const role = localStorage.getItem(ROLE_KEY);
+      const endpoint =
+        role === "recruiter" ? "/recruiter/profile" : "/candidate/profile";
+      const response = await api.get<{ user: AuthResponse["user"] }>(endpoint);
+      return response.data.user;
     } catch (error) {
       handleError(error as AxiosError);
       throw error;

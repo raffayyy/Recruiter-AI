@@ -5,6 +5,7 @@ import { User } from "../../types/auth";
 import axios from "axios";
 import { ResumeView } from "./ResumeView";
 import { getResume } from "../../services/api/candidate_endpoints";
+import { API_URL } from "../../config";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = ["application/pdf"];
@@ -107,7 +108,7 @@ export function ProfileForm({ user }: { user: User }) {
       formData.append("file", file);
 
       await axios.post<{ url: string }>(
-        "http://localhost:8000/candidate/upload-resume",
+        `${API_URL}/candidate/upload-resume`,
         formData,
         {
           headers: {
@@ -122,7 +123,7 @@ export function ProfileForm({ user }: { user: User }) {
 
       // Fetch the updated resume details
       const response = await axios.get(
-        "http://localhost:8000/candidate/resume",
+        `${API_URL}/candidate/resume`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { API_URL } from "../config";
 
 export function useFetchApplications() {
   const [applications, setApplications] = useState([]);
@@ -13,7 +14,7 @@ export function useFetchApplications() {
       setIsLoading(true);
       try {
         const response = await fetch(
-          "http://localhost:8000/recruiter/all-applications",
+          `${API_URL}/recruiter/all-applications`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

@@ -5,13 +5,15 @@ import { VirtualInterviewer } from "./VirtualInterviewer";
 import { ProctoringWarnings } from "./ProctoringWarnings";
 import { useVideoStream } from "../../hooks/useVideoStream";
 import { useNavigate, useParams } from "react-router-dom";
-import { Clock, AlertTriangle, AlertOctagon } from "lucide-react";
+import { Clock, AlertTriangle, MessageSquare, Mic, Volume2, Wifi, WifiOff } from "lucide-react";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { useWebSocket } from "../../hooks/useWebSocket";
 import { useTabProctoring } from "../../hooks/useTabProctoring";
 import api from "../../lib/api";
 import { TabProctoring } from "./TabProctoring";
 import { FaceViolation } from "../../hooks/useFaceDetection";
 import { endInterview } from "../../services/api/candidate_endpoints";
+import { WS_URL } from "../../config";
 // import { InterviewDebug } from "./InterviewDebug";
 
 // 15 minutes interview duration
@@ -34,6 +36,10 @@ export function InterviewRoom() {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const lastProcessedMessageRef = useRef<number>(-1);
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const interviewEndedRef = useRef(false);
+  const [startError, setStartError] = useState<string | null>(null);
+  const transcriptContainerRef = useRef<HTMLDivElement>(null);
   
   // Add new state for proctoring violations
   const [proctoringViolations, setProctoringViolations] = useState<FaceViolation[]>([]);
@@ -63,14 +69,10 @@ export function InterviewRoom() {
 
   // Timer state
   const [timeRemaining, setTimeRemaining] = useState(INTERVIEW_DURATION);
-  const [showTimeWarning, setShowTimeWarning] = useState(false);
 
-  // WebSocket configuration
-  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsHost = import.meta.env.VITE_WS_HOST || window.location.hostname;
-  const wsPort = import.meta.env.VITE_WS_PORT || '8000';
-  const wsUrl = `${wsProtocol}//${wsHost}:${wsPort}`;
-  const wsEndpoint = `${wsUrl}/interview/ws/${id}`;
+  // WebSocket configuration — derived from the API URL (see src/config.ts) so it
+  // matches the backend host/protocol both locally and in production.
+  const wsEndpoint = `${WS_URL}/interview/ws/${id}`;
   
   // Log only once on initial render
   const hasLoggedRef = useRef(false);
@@ -80,8 +82,14 @@ export function InterviewRoom() {
     hasLoggedRef.current = true;
   }
   
-  // Use the websocket hook with stable URL
-  const { isConnected, messages, sendMessage } = useWebSocket(wsEndpoint);
+  // Only open the WebSocket AFTER the interview session exists on the backend
+  // (i.e. /interview/start has run). Connecting earlier races the session
+  // creation: the backend closes with code 4000 ("No active interview session")
+  // and the client exhausts its retries before the session is ready — which
+  // left the room stuck on "Connecting", especially on a cold Render start.
+  const { isConnected, messages, sendMessage } = useWebSocket(
+    interviewStarted ? wsEndpoint : ""
+  );
   const corsTestRunRef = useRef(false);
   const startInterviewRunRef = useRef(false);
   
@@ -163,35 +171,60 @@ export function InterviewRoom() {
     });
   }, [maxFaceViolations, isConnected, sendMessage]);
   
-  // Expand handleEndInterview to include a reason parameter
-  const handleEndInterview = useCallback((isAutoSubmit = false, reason = "") => {
-    const confirmMessage = isAutoSubmit && reason 
-      ? `Interview ended: ${reason}`
-      : "Are you sure you want to end the interview?";
-      
-    if (isAutoSubmit || confirm(confirmMessage)) {
-      // Stop recording if active
-      if (isRecording && mediaRecorder) {
-        stopRecording();
-      }
+  // Actually end the interview: stop media, notify backend, go to completion.
+  // Guarded so it only runs once (timer, {type:"end"}, and manual can all fire).
+  const doEndInterview = useCallback((isAutoSubmit = false, reason = "") => {
+    if (interviewEndedRef.current) return;
+    interviewEndedRef.current = true;
 
-      // Stop all media tracks
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-
-      endInterview(id!);
-
-      // Navigate to completion page
-      navigate("/interview-complete", {
-        state: {
-          autoSubmitted: isAutoSubmit,
-          applicationId: id,
-          reason: reason,
-        },
-      });
+    if (isRecording && mediaRecorder) {
+      stopRecording();
     }
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+    }
+
+    endInterview(id!);
+
+    navigate("/interview-complete", {
+      state: { autoSubmitted: isAutoSubmit, applicationId: id, reason },
+    });
   }, [id, isRecording, mediaRecorder, navigate, stream, stopRecording]);
+
+  // Manual end (button) confirms via dialog; automatic ends go straight through.
+  const handleEndInterview = useCallback((isAutoSubmit = false, reason = "") => {
+    if (isAutoSubmit) {
+      doEndInterview(true, reason);
+    } else {
+      setShowEndConfirm(true);
+    }
+  }, [doEndInterview]);
+
+  // Live transcript built from interviewer questions + candidate transcripts.
+  const transcript = useMemo(() => {
+    const entries: { role: "interviewer" | "candidate"; text: string }[] = [];
+    for (const m of messages as any[]) {
+      if (m?.type === "question" && typeof m.question === "string") {
+        entries.push({ role: "interviewer", text: m.question });
+      } else if (m?.type === "transcript" && typeof m.text === "string" && m.text.trim()) {
+        entries.push({ role: m.role === "interviewer" ? "interviewer" : "candidate", text: m.text });
+      }
+    }
+    return entries;
+  }, [messages]);
+
+  // Auto-scroll the transcript to the newest message.
+  useEffect(() => {
+    const el = transcriptContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [transcript]);
+
+  // Backend signals the interview is over (time up / complete) -> end gracefully.
+  useEffect(() => {
+    if ((messages as any[]).some((m) => m?.type === "end")) {
+      doEndInterview(true, "Interview complete");
+    }
+  }, [messages, doEndInterview]);
 
   // Add this effect to initialize audio context and analyser for silence detection
   useEffect(() => {
@@ -259,7 +292,7 @@ export function InterviewRoom() {
             console.log("Safety timeout: Resetting isPlayingAudio state");
             setIsPlayingAudio(false);
           }
-        }, 10000); // 10 seconds max for audio playback
+        }, 45000); // fallback only; audio.onended normally resets this sooner
         
         // Small delay to ensure cleanup is complete
         setTimeout(() => {
@@ -363,37 +396,31 @@ export function InterviewRoom() {
             setIsPlayingAudio(false);
           }
         }, 50); // Small delay for cleanup
-        
-        // Return a cleanup function that will run when the component unmounts
-        return () => {
-          clearTimeout(safetyTimeout);
-          if (audioElementRef.current) {
-            try {
-              audioElementRef.current.pause();
-              audioElementRef.current.src = '';
-            } catch (err) {
-              console.error("Error in cleanup:", err);
-            }
-            audioElementRef.current = null;
-          }
-          setIsPlayingAudio(false);
-        };
       }
     }
-    
-    // Cleanup function
+    // IMPORTANT: this effect returns NO cleanup that pauses audio. It re-runs on
+    // every new WS message (questions, transcripts, and the backend's echoed
+    // "violation_recorded" acks from proctoring). A pausing cleanup here would
+    // stop the currently-playing question the moment any such message arrived —
+    // which is exactly why audio died on proctoring violations. Old audio is
+    // stopped when a NEW audio message starts (see the cleanup block above), and
+    // on unmount by the dedicated effect below.
+  }, [messages]);
+
+  // Stop any audio only when the interview room unmounts.
+  useEffect(() => {
     return () => {
       if (audioElementRef.current) {
         try {
           audioElementRef.current.pause();
-          audioElementRef.current.src = '';
+          audioElementRef.current.src = "";
         } catch (err) {
-          console.error("Error in cleanup:", err);
+          console.error("Error stopping audio on unmount:", err);
         }
         audioElementRef.current = null;
       }
     };
-  }, [messages, isPlayingAudio]);
+  }, []);
 
   // Add a manual reset button for emergency cases
   useEffect(() => {
@@ -621,21 +648,20 @@ export function InterviewRoom() {
             navigate("/dashboard");
           }
         } catch (error: any) {
-          // Check for the "Interview already in progress" error case
-          if (error?.response?.data?.detail === "Interview already in progress") {
+          // ApiClient rejects with the response body, so the message is on
+          // error.detail (fallback to axios-style error.response.data.detail).
+          const detail = error?.detail || error?.response?.data?.detail;
+          if (detail === "Interview already in progress") {
             console.log("Interview already in progress, continuing...");
             setInterviewStarted(true);
           } else {
             console.error("Error starting interview:", error);
-            // Only navigate away if the WebSocket isn't connected within 10 seconds
-            const connectTimeout = setTimeout(() => {
-              if (!isConnected) {
-                alert("Failed to connect to the interview server. Please try again later.");
-                navigate("/dashboard");
-              }
-            }, 10000);
-            
-            return () => clearTimeout(connectTimeout);
+            // Surface the reason immediately (e.g. AI rate-limited) instead of
+            // hanging on the "Connecting" spinner.
+            setStartError(
+              detail || "Could not start the interview. Please try again in a few minutes."
+            );
+            return;
           }
         }
       } catch (error) {
@@ -658,35 +684,14 @@ export function InterviewRoom() {
     };
   }, []);
 
-  // Timer effect with auto-submit
+  // Timer effect — ends the interview automatically at zero (no blocking prompt).
   useEffect(() => {
     const timerId = setInterval(() => {
       setTimeRemaining((prevTime) => {
         if (prevTime <= 1) {
           clearInterval(timerId);
-          
-          // Auto-submit when time ends - inlined to avoid dependency issues
           console.log("Interview time ended, auto-submitting...");
-          if (confirm("Your time is up. The interview will be submitted now.")) {
-            // Stop recording if active
-            if (isRecording && mediaRecorder) {
-              stopRecording();
-            }
-
-            // Stop all media tracks
-            if (stream) {
-              stream.getTracks().forEach((track) => track.stop());
-            }
-
-            // Navigate to completion page
-            navigate("/interview-complete", {
-              state: {
-                autoSubmitted: true,
-                applicationId: id,
-              },
-            });
-          }
-          
+          setTimeout(() => doEndInterview(true, "Time is up"), 0);
           return 0;
         }
         return prevTime - 1;
@@ -694,15 +699,7 @@ export function InterviewRoom() {
     }, 1000);
 
     return () => clearInterval(timerId);
-  }, [id, isRecording, mediaRecorder, navigate, stream, stopRecording]);
-
-  // Show warning when 2 minutes left
-  useEffect(() => {
-    if (timeRemaining === 120) {
-      setShowTimeWarning(true);
-      setTimeout(() => setShowTimeWarning(false), 10000); // Hide after 10 seconds
-    }
-  }, [timeRemaining]);
+  }, [doEndInterview]);
 
   // Format time as MM:SS
   const formatTime = (seconds: number) => {
@@ -761,35 +758,8 @@ export function InterviewRoom() {
         });
         
         console.log("Audio send attempt result:", success ? "success" : "failed");
-        
-        // Show status notification
-        const notificationEl = document.createElement('div');
-        notificationEl.style.position = 'fixed';
-        notificationEl.style.bottom = '20px';
-        notificationEl.style.right = '20px';
-        notificationEl.style.padding = '10px 20px';
-        notificationEl.style.borderRadius = '4px';
-        notificationEl.style.color = 'white';
-        notificationEl.style.zIndex = '9999';
-        
-        if (success) {
-          notificationEl.style.backgroundColor = 'green';
-          notificationEl.textContent = `Audio sent (${base64Audio.length} bytes)`;
-        } else {
-          notificationEl.style.backgroundColor = 'red';
-          notificationEl.textContent = 'Failed to send audio';
-        }
-        
-        document.body.appendChild(notificationEl);
-        setTimeout(() => {
-          if (document.body.contains(notificationEl)) {
-            document.body.removeChild(notificationEl);
-          }
-        }, 3000);
-        
       } catch (err) {
         console.error("Error encoding audio:", err);
-        alert("Error sending audio: " + (err instanceof Error ? err.message : String(err)));
       } finally {
         // Always ensure we're ready for next recording
         audioChunksRef.current = [];
@@ -807,12 +777,33 @@ export function InterviewRoom() {
     reader.readAsDataURL(audioBlob);
   }
 
-  if (error) {
+  // Derived UI state for the header status pill and timer colour.
+  const StatusIcon = !isConnected ? WifiOff : isPlayingAudio ? Volume2 : isRecording ? Mic : Wifi;
+  const statusLabel = !isConnected
+    ? "Connecting…"
+    : isPlayingAudio
+    ? "Interviewer speaking"
+    : isRecording
+    ? "Recording…"
+    : "Your turn";
+  const statusTone = !isConnected
+    ? "text-yellow-300"
+    : isPlayingAudio
+    ? "text-blue-300"
+    : isRecording
+    ? "text-red-300"
+    : "text-green-300";
+  const timerColor =
+    timeRemaining <= 30 ? "text-red-400" : timeRemaining <= 120 ? "text-amber-400" : "text-blue-400";
+
+  if (error || startError) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-900 p-4 text-white">
-        <div className="rounded-lg bg-red-900/50 p-6 text-center">
-          <p className="text-lg">Failed to access camera and microphone</p>
-          <p className="mt-2 text-sm text-red-300">{error}</p>
+        <div className="max-w-md rounded-lg bg-red-900/50 p-6 text-center">
+          <p className="text-lg">
+            {error ? "Failed to access camera and microphone" : "Couldn't start the interview"}
+          </p>
+          <p className="mt-2 text-sm text-red-300">{error || startError}</p>
           <button
             onClick={() => navigate("/dashboard")}
             className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none"
@@ -839,65 +830,74 @@ export function InterviewRoom() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-gray-900 text-white">
-      {/* Header - reduced padding */}
-      <header className="px-4 py-3 border-b border-gray-800">
+    <div className="flex min-h-screen flex-col bg-gray-900 text-white">
+      {/* Header (sticky so the timer/status stay visible while scrolling) */}
+      <header className="sticky top-0 z-10 border-b border-gray-800 bg-gray-900 px-4 py-3">
         <div className="container mx-auto flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <h1 className="text-2xl font-bold">Recruiter.ai Interview</h1>
-          
-          {/* Timer display */}
           <div className="flex items-center gap-3">
-            <div 
-              className={`flex items-center gap-2 ${showTimeWarning ? 'text-red-400' : 'text-blue-400'}`}
-            >
-              <Clock className="h-5 w-5" />
-              <span className="text-lg">
-                {formatTime(timeRemaining)}
-              </span>
-            </div>
-            
+            <h1 className="text-xl font-bold">Recruiter.ai Interview</h1>
+            <span className={`flex items-center gap-1.5 rounded-full bg-gray-800 px-3 py-1 text-sm font-medium ${statusTone}`}>
+              <StatusIcon className="h-4 w-4" />
+              {statusLabel}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-4">
             {showTabWarning && (
               <div className="flex items-center gap-2 text-yellow-400">
                 <AlertTriangle className="h-5 w-5" />
-                <span>Tab switching detected</span>
+                <span className="text-sm">Tab switching detected</span>
               </div>
             )}
+            <div className={`flex items-center gap-2 font-mono ${timerColor}`}>
+              <Clock className="h-6 w-6" />
+              <span className="text-3xl font-bold tabular-nums">{formatTime(timeRemaining)}</span>
+            </div>
           </div>
         </div>
       </header>
+
+      {/* Wind-down banner in the final stretch */}
+      {timeRemaining <= 120 && timeRemaining > 0 && (
+        <div className="border-b border-amber-500/30 bg-amber-500/15 px-4 py-2 text-center text-sm text-amber-300">
+          <AlertTriangle className="mr-1 inline h-4 w-4" />
+          Less than {Math.ceil(timeRemaining / 60)} minute
+          {Math.ceil(timeRemaining / 60) > 1 ? "s" : ""} left — the interviewer is wrapping up.
+        </div>
+      )}
       
-      {/* Main content area - with reduced padding */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="container mx-auto flex-1 py-3 px-4 flex flex-col">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 flex-1">
+      {/* Main content area (page scrolls normally so controls are always reachable) */}
+      <div className="flex-1">
+        <div className="container mx-auto py-3 px-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* Video interview section */}
-            <div className="col-span-2 flex flex-col">
-              {/* Video feeds in grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3 flex-auto">
+            <div className="lg:col-span-2 flex flex-col">
+              {/* Video feeds in grid — bounded heights so controls stay on screen */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                 <div className="flex flex-col">
                   <h2 className="text-lg font-medium mb-1">You</h2>
-                  <div className="flex-1 min-h-0"> {/* Force contained height */}
-                    <VideoPanel 
-                      stream={stream} 
-                      isMuted={isMuted} 
+                  <div className="h-48 sm:h-56 md:h-64">
+                    <VideoPanel
+                      stream={stream}
+                      isMuted={isMuted}
                       isVideoOn={isVideoOn}
                       onViolation={handleProctoringViolation}
                     />
                   </div>
                 </div>
-                
+
                 <div className="flex flex-col">
                   <h2 className="text-lg font-medium mb-1">Interviewer</h2>
-                  <div className="flex-1 min-h-0"> {/* Force contained height */}
-                    <VirtualInterviewer 
+                  <div className="h-48 sm:h-56 md:h-64">
+                    <VirtualInterviewer
                       isAnswering={isRecording}
                       serverQuestion={serverQuestion}
                     />
                   </div>
                 </div>
               </div>
-              
-              {/* Interview Controls - Now with fixed height */}
+
+              {/* Interview Controls */}
               <div className="bg-gray-800 p-3 rounded-lg">
                 <h2 className="text-lg font-medium mb-2">Interview Controls</h2>
                 <InterviewControls 
@@ -917,6 +917,34 @@ export function InterviewRoom() {
             {/* Interview guidance section */}
             <div className="overflow-auto">
               <div className="space-y-4">
+                <div>
+                  <h2 className="mb-1 flex items-center gap-2 text-lg font-medium">
+                    <MessageSquare className="h-5 w-5" /> Conversation
+                  </h2>
+                  <div
+                    ref={transcriptContainerRef}
+                    className="max-h-[42vh] space-y-2 overflow-y-auto rounded-lg bg-gray-800 p-3"
+                  >
+                    {transcript.length === 0 ? (
+                      <p className="text-sm text-gray-400">The interview will begin shortly…</p>
+                    ) : (
+                      transcript.map((t, i) => (
+                        <div
+                          key={i}
+                          className={`rounded-lg p-2 text-sm ${
+                            t.role === "interviewer" ? "bg-blue-900/30" : "bg-gray-700/50"
+                          }`}
+                        >
+                          <p className="mb-0.5 text-xs font-medium text-gray-400">
+                            {t.role === "interviewer" ? "Interviewer" : "You"}
+                          </p>
+                          <p className="text-gray-100">{t.text}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
                 <div>
                   <h2 className="text-lg font-medium mb-1">Interview Tips</h2>
                   <ProctoringWarnings violations={proctoringViolations} />
@@ -947,6 +975,17 @@ export function InterviewRoom() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showEndConfirm}
+        onClose={() => setShowEndConfirm(false)}
+        onConfirm={() => doEndInterview(false, "Ended by candidate")}
+        title="End interview?"
+        message="Are you sure you want to end the interview? It will be submitted for evaluation and can't be resumed."
+        confirmText="End Interview"
+        cancelText="Keep Going"
+        variant="danger"
+      />
     </div>
   );
 }

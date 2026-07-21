@@ -41,9 +41,9 @@ export function ApplicationsList({
   return (
     <div className="space-y-4">
       {applications &&
-        applications?.map((application) => (
+        applications?.map((application: any, index: number) => (
           <ApplicationCard
-            key={application?.job_id}
+            key={application?.application_id ?? application?.job_id ?? index}
             application={application}
           />
         ))}

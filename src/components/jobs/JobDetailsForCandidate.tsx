@@ -5,6 +5,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { formatDate } from '../../lib/date';
+import { formatText } from '../../utils/formatText';
 
 interface JobDetailsProps {
   job: {
@@ -69,11 +70,11 @@ export function JobDetailsForCandidate({ job }: JobDetailsProps) {
                 </div>
                 <div className="flex items-center gap-1">
                   <MapPin className="h-4 w-4" />
-                  <span>{job.location}</span>
+                  <span>{formatText(job.location)}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Clock className="h-4 w-4" />
-                  <span>{job.time}</span>
+                  <span>{formatText(job.time)}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <DollarSign className="h-4 w-4" />

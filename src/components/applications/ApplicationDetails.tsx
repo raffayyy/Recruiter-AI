@@ -3,6 +3,7 @@ import { Building2, MapPin, Calendar, Clock, FileText } from "lucide-react";
 import { Card } from "../ui/Card";
 import { Application } from "../../types/application";
 import { formatDate } from "../../lib/date";
+import { formatText } from "../../utils/formatText";
 import { FeedbackSummary } from "../feedback/FeedbackSummary";
 
 interface ApplicationDetailsProps {
@@ -59,7 +60,7 @@ export function ApplicationDetails({ application }: ApplicationDetailsProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-gray-500" />
-                  <span>{application.job.location}</span>
+                  <span>{formatText(application.job.location)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-gray-500" />

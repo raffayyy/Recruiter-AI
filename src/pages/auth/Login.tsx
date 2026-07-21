@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BriefcaseIcon } from 'lucide-react';
 import { LoginForm } from '../../components/auth/LoginForm';
-import { DemoAccounts } from '../../components/auth/DemoAccounts';
 import { useLogin } from '../../hooks/useLogin';
 import { useAuth } from '../../contexts/AuthContext';
 import type { LoginForm as LoginFormType } from '../../schemas/auth';
@@ -27,15 +26,6 @@ export default function Login() {
       const from = location.state?.from || '/dashboard';
       navigate(from, { replace: true });
     }
-  };
-
-  const fillDemoCredentials = (role: 'candidate' | 'recruiter') => {
-    const demoData = {
-      email: `${role}@demo.com`,
-      password: 'demo123',
-      role,
-    };
-    onSubmit(demoData);
   };
 
   return (
@@ -64,7 +54,6 @@ export default function Login() {
             </div>
           )}
 
-          <DemoAccounts onFill={fillDemoCredentials} />
           <LoginForm onSubmit={onSubmit} isSubmitting={isLoading} />
         </div>
       </div>

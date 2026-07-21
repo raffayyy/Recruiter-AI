@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useWebSocket } from './useWebSocket';
+import { WS_URL } from '../config';
 
 interface RecruiterStats {
   activeApplications: number;
@@ -16,7 +17,7 @@ export function useRecruiterRealTimeStats() {
     conversionRate: 0,
   });
 
-  const { isConnected, messages } = useWebSocket('wss://api.example.com/stats');
+  const { isConnected, messages } = useWebSocket(`${WS_URL}/stats`);
 
   useEffect(() => {
     // Simulated real-time updates

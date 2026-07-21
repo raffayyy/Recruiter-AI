@@ -37,23 +37,22 @@ export function useJobDetails(jobId: string | undefined) {
     });
     setApplicants(response.applications);
   };
-  useEffect(() => {
+  const fetchJobDetails = async () => {
     if (!jobId) return;
-    let response: any;
-    const fetchJobDetails = async () => {
-      try {
-        response = await api.jobs.getRecruiterJob(jobId);
-        responseFormatter(response);
-        const jobDetails = await api.jobs.getRecruiterJobDetails(jobId);
-        setCompleteJobDetails(jobDetails);
-      } catch (err) {
-        console.error("Failed to fetch job details:", err);
-        setError("Failed to load job details. Please try again.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    try {
+      const response = await api.jobs.getRecruiterJob(jobId);
+      responseFormatter(response);
+      const jobDetails = await api.jobs.getRecruiterJobDetails(jobId);
+      setCompleteJobDetails(jobDetails);
+    } catch (err) {
+      console.error("Failed to fetch job details:", err);
+      setError("Failed to load job details. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchJobDetails();
   }, [jobId]);
 
@@ -63,5 +62,6 @@ export function useJobDetails(jobId: string | undefined) {
     applicants,
     isLoading,
     error,
+    refetch: fetchJobDetails,
   };
 }

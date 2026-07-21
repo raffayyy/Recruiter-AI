@@ -8,7 +8,7 @@ import { useJobDetails } from '../../hooks/useJobDetails';
 
 export default function JobDetailsPage() {
   const { jobId } = useParams();
-  const { job, applicants, isLoading, error } = useJobDetails(jobId);
+  const { job, applicants, isLoading, error, refetch } = useJobDetails(jobId);
 
   if (isLoading) {
     return (
@@ -40,7 +40,7 @@ export default function JobDetailsPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <JobDetails job={job} applicantsCount={applicants.length} />
-        <ApplicantsList applicants={applicants} />
+        <ApplicantsList applicants={applicants} onApplicantUpdated={refetch} />
       </div>
     </DashboardLayout>
   );

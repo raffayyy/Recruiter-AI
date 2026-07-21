@@ -30,8 +30,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem("access_token");
-      if (token) {
+      const savedToken = localStorage.getItem("access_token");
+      if (savedToken) {
+        // Restore the token into state so features that depend on it (e.g. the
+        // interview WebSocket via useWebSocket) work after a refresh/direct nav.
+        setToken(savedToken);
         try {
           const userData = await authService.getProfile();
           setUser(userData);
@@ -39,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error("Failed to fetch user profile:", error);
           localStorage.removeItem("access_token");
           localStorage.removeItem("user_role");
+          setToken(undefined);
         }
       }
       setIsLoading(false);

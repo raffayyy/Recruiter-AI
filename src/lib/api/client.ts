@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
+import { API_URL } from "../../config";
 
 // src/lib/api/client.ts
 export class ApiClient {
@@ -6,8 +7,7 @@ export class ApiClient {
 
   constructor(config?: AxiosRequestConfig) {
     this.client = axios.create({
-      baseURL:
-        "http://localhost:8000",
+      baseURL: API_URL,
       headers: {
         "Content-Type": "application/json",
       },

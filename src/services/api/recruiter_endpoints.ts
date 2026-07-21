@@ -11,3 +11,12 @@ export const getRecruiterDashboardApplications = () => {
 export const getApplicationFeedback = (applicationId: string) => {
   return apiRequest(MethodMap.GET, `/recruiter/evaluations/${applicationId}`);
 }
+
+export const reviewApplication = (
+  applicationId: number | string,
+  decision: "approved" | "rejected"
+) => {
+  return apiRequest(MethodMap.POST, `/recruiter/review/${applicationId}`, {
+    decision,
+  });
+};

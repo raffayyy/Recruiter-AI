@@ -37,11 +37,12 @@ export class FaceDetectionService {
     
     this.loadingPromise = new Promise<void>(async (resolve) => {
       try {
-        // Load required models for face detection
+        // Load only what detection actually uses: the tiny detector (presence /
+        // count) and 68-point landmarks (head-pose). faceRecognitionNet (~6MB)
+        // was loaded but never used — dropping it saves memory and load time.
         await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
         await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-        await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
-        
+
         console.log("Face detection models loaded successfully");
         this.modelsLoaded = true;
         resolve();

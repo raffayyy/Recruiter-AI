@@ -4,6 +4,7 @@ import { Job } from "../../types/job";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { useAuth } from "../../contexts/AuthContext";
+import { formatText } from "../../utils/formatText";
 
 interface ApplicationCardProps {
   application: Job;
@@ -41,7 +42,7 @@ export function RecruiterApplicationCard({
         <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
           <div className="flex items-center gap-1">
             <Clock className="h-4 w-4" />
-            <span>{application?.time}</span>
+            <span>{formatText(application?.time)}</span>
           </div>
         </div>
 

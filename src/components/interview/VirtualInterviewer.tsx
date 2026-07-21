@@ -22,9 +22,9 @@ export function VirtualInterviewer({
   }, [question, serverQuestion]);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center rounded-lg bg-gradient-to-b from-gray-800 to-gray-900 p-4">
-      {/* Question display - removed scrolling */}
-      <div className="w-full max-w-3xl mb-3 rounded-lg bg-gray-900/80 p-4 shadow-lg border border-gray-700">
+    <div className="flex h-full flex-col items-center justify-start gap-3 overflow-y-auto rounded-lg bg-gradient-to-b from-gray-800 to-gray-900 p-4">
+      {/* Question display */}
+      <div className="w-full max-w-3xl rounded-lg bg-gray-900/80 p-4 shadow-lg border border-gray-700">
         <h2 className="text-sm font-medium text-gray-400 mb-1">Interview Question:</h2>
         <p className="text-lg text-white leading-relaxed">
           {currentQuestion || "Waiting for the next question..."}

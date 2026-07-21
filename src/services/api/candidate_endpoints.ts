@@ -15,3 +15,7 @@ export const endInterview = (applicationId: string) =>{
 export const getCandidateJobDetails = (jobId: string) =>{
   return apiRequest(MethodMap.GET, `/candidate/jobs/${jobId}`)
 }
+
+export const getApplicationResult = (applicationId: string) => {
+  return apiRequest(MethodMap.GET, `/candidate/application/${applicationId}/result`);
+};
